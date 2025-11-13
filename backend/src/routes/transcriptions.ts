@@ -47,8 +47,10 @@ const createInputSchema = z.object({
 // Schema para atualizar transcrição
 const updateInputSchema = z.object({
   id: z.number().int().positive(),
-  finalText: z.string()
-    .min(1, 'Texto final é obrigatório'),
+  title: z.string().max(255).optional(),
+  room: z.string().max(100).optional(),
+  transcriptionText: z.string().optional(),
+  finalText: z.string().optional(),
 });
 
 /**
@@ -140,9 +142,11 @@ export const transcriptionsRouter = router({
    * 2. GET BY ID - Buscar transcrição por ID
    */
   getById: publicProcedure
-    .input(z.number().int().positive())
-    .query(async ({ input: id }) => {
+    .input(z.object({ id: z.number().int().positive() }))
+    .query(async ({ input }) => {
       try {
+        const { id } = input;
+
         const [transcription] = await db
           .select()
           .from(transcriptions)
@@ -156,7 +160,12 @@ export const transcriptionsRouter = router({
           });
         }
 
-        return transcription;
+        // Retornar com transcriptionText como alias para finalText
+        return {
+          ...transcription,
+          transcriptionText: transcription.finalText,
+          audioDuration: transcription.durationSeconds,
+        };
       } catch (error) {
         if (error instanceof TRPCError) throw error;
 
@@ -251,13 +260,13 @@ export const transcriptionsRouter = router({
     }),
 
   /**
-   * 4. UPDATE - Atualizar final_text (edição manual)
+   * 4. UPDATE - Atualizar transcrição (título, sala, texto)
    */
   update: publicProcedure
     .input(updateInputSchema)
     .mutation(async ({ input }) => {
       try {
-        const { id, finalText } = input;
+        const { id, title, room, transcriptionText, finalText } = input;
 
         // Verificar se transcrição existe
         const [existing] = await db
@@ -273,13 +282,20 @@ export const transcriptionsRouter = router({
           });
         }
 
-        // Atualizar final_text
-        await db
-          .update(transcriptions)
-          .set({
-            finalText: finalText,
-          } as any)
-          .where(eq(transcriptions.id, id));
+        // Construir objeto de atualização apenas com campos fornecidos
+        const updateData: any = {};
+        if (title !== undefined) updateData.title = title;
+        if (room !== undefined) updateData.room = room;
+        if (transcriptionText !== undefined) updateData.finalText = transcriptionText;
+        if (finalText !== undefined) updateData.finalText = finalText;
+
+        // Atualizar apenas se houver dados
+        if (Object.keys(updateData).length > 0) {
+          await db
+            .update(transcriptions)
+            .set(updateData)
+            .where(eq(transcriptions.id, id));
+        }
 
         // Buscar transcrição atualizada
         const [updated] = await db
