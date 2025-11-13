@@ -4,6 +4,9 @@ import dotenv from 'dotenv';
 import { testConnection } from './db/client.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createExpressMiddleware } from '@trpc/server/adapters/express';
+import { appRouter } from './routes/index.js';
+import { createContext } from './lib/trpc.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,10 +38,14 @@ app.get('/health', (req, res) => {
   });
 });
 
-// TODO: Adicionar rotas tRPC aqui
-// import { createExpressMiddleware } from '@trpc/server/adapters/express';
-// import { appRouter } from './routes/index.js';
-// app.use('/trpc', createExpressMiddleware({ router: appRouter }));
+// tRPC routes
+app.use(
+  '/trpc',
+  createExpressMiddleware({
+    router: appRouter,
+    createContext,
+  })
+);
 
 // Iniciar servidor
 async function startServer() {
