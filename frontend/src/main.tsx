@@ -18,10 +18,12 @@ const queryClient = new QueryClient({
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
+    {/* @ts-ignore - Tipo temporário do tRPC */}
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <App />
       </QueryClientProvider>
+    {/* @ts-ignore - Tipo temporário do tRPC */}
     </trpc.Provider>
   </React.StrictMode>,
 );

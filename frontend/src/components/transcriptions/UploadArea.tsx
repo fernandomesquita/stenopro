@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Upload, File, X } from 'lucide-react';
 import { Button } from '../common/Button';
 import { Input } from '../common/Input';
@@ -17,6 +17,7 @@ export function UploadArea({ onUploadSuccess }: UploadAreaProps) {
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // @ts-ignore - Tipo temporário do tRPC
   const createMutation = trpc.transcriptions.create.useMutation({
     onSuccess: () => {
       // Resetar form
@@ -29,8 +30,8 @@ export function UploadArea({ onUploadSuccess }: UploadAreaProps) {
       }
       onUploadSuccess?.();
     },
-    onError: (error) => {
-      setError(error.message);
+    onError: (error: any) => {
+      setError(error.message || 'Erro ao fazer upload');
     },
   });
 
