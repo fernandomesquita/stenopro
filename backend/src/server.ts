@@ -4,6 +4,22 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { testConnection } from './db/client.js';
 import path from 'path';
+
+// Servir frontend em produção
+if (process.env.NODE_ENV === 'production') {
+  const frontendPath = path.join(__dirname, '../../frontend/dist');
+  app.use(express.static(frontendPath));
+  
+  // Todas as rotas não-API vão pro frontend
+  app.get('*', (req, res, next) => {
+    if (!req.path.startsWith('/trpc') && !req.path.startsWith('/api')) {
+      res.sendFile(path.join(frontendPath, 'index.html'));
+    } else {
+      next();
+    }
+  });
+}
+
 import { fileURLToPath } from 'url';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
 import { appRouter } from './routes/index.js';
