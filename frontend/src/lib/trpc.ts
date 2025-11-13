@@ -3,6 +3,11 @@ import { httpBatchLink } from '@trpc/client';
 import type { AppRouter } from '../../../backend/src/routes/index';
 
 /**
+ * URL da API - configurável via variável de ambiente
+ */
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+/**
  * Cliente tRPC tipado com o AppRouter do backend
  */
 export const trpc = createTRPCReact<AppRouter>();
@@ -13,7 +18,7 @@ export const trpc = createTRPCReact<AppRouter>();
 export const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
-      url: import.meta.env.VITE_API_URL || 'http://localhost:3000/trpc',
+      url: `${API_URL}/trpc`,
 
       // Headers customizados (futuro: auth token)
       headers() {
