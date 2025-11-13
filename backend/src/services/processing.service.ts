@@ -55,8 +55,10 @@ export class ProcessingService {
           correctedText,
           finalText: correctedText, // Inicialmente, final = corrigido
           status: 'ready',
+          progressMessage: 'Concluído!',
+          progressPercent: 100,
           processingCompletedAt: new Date(),
-        })
+        } as any)
         .where(eq(transcriptions.id, transcriptionId));
       
       console.log(`[Processing] ✅ Transcrição ${transcriptionId} processada com sucesso`);
@@ -69,7 +71,9 @@ export class ProcessingService {
         .set({
           status: 'error',
           errorMessage: error?.message || 'Erro desconhecido',
-        })
+          progressMessage: 'Erro no processamento',
+          progressPercent: 0,
+        } as any)
         .where(eq(transcriptions.id, transcriptionId));
 
       throw error;
@@ -77,18 +81,34 @@ export class ProcessingService {
   }
   
   /**
-   * Atualiza apenas o status de uma transcrição
+   * Atualiza apenas o status de uma transcrição com mensagem de progresso
    */
   private async updateStatus(
     transcriptionId: number,
     status: 'uploading' | 'transcribing' | 'correcting' | 'ready' | 'archived' | 'error'
   ): Promise<void> {
+    // Definir mensagem e percentual de progresso baseado no status
+    const progressData: { [key: string]: { message: string; percent: number } } = {
+      uploading: { message: 'Enviando áudio...', percent: 0 },
+      transcribing: { message: 'Transcrevendo áudio com Whisper...', percent: 33 },
+      correcting: { message: 'Corrigindo texto com Claude...', percent: 66 },
+      ready: { message: 'Concluído!', percent: 100 },
+      archived: { message: 'Arquivado', percent: 100 },
+      error: { message: 'Erro no processamento', percent: 0 },
+    };
+
+    const progress = progressData[status];
+
     await db
       .update(transcriptions)
-      .set({ status })
+      .set({
+        status,
+        progressMessage: progress.message,
+        progressPercent: progress.percent,
+      } as any)
       .where(eq(transcriptions.id, transcriptionId));
-    
-    console.log(`[Processing] Status atualizado: ${status}`);
+
+    console.log(`[Processing] Status atualizado: ${status} (${progress.percent}% - ${progress.message})`);
   }
   
   /**
@@ -96,8 +116,8 @@ export class ProcessingService {
    */
   async reprocessTranscription(transcriptionId: number): Promise<void> {
     console.log(`[Processing] Reprocessando transcrição ${transcriptionId}`);
-    
-    // Limpar erros anteriores
+
+    // Limpar erros anteriores e resetar progresso
     await db
       .update(transcriptions)
       .set({
@@ -105,11 +125,13 @@ export class ProcessingService {
         errorMessage: null,
         rawText: null,
         correctedText: null,
+        progressMessage: 'Enviando áudio...',
+        progressPercent: 0,
         processingStartedAt: new Date(),
         processingCompletedAt: null,
-      })
+      } as any)
       .where(eq(transcriptions.id, transcriptionId));
-    
+
     // Processar novamente
     await this.processTranscription(transcriptionId);
   }

@@ -32,6 +32,8 @@ export const transcriptions = mysqlTable('transcriptions', {
     'error'
   ]).default('uploading'),
   errorMessage: text('error_message'),
+  progressMessage: varchar('progress_message', { length: 255 }),
+  progressPercent: int('progress_percent').default(0),
   processingStartedAt: timestamp('processing_started_at'),
   processingCompletedAt: timestamp('processing_completed_at'),
   createdAt: timestamp('created_at').defaultNow(),

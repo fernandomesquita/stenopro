@@ -224,6 +224,8 @@ export const transcriptionsRouter = router({
             audioUrl: url,
             audioFilename: filename,
             status: 'uploading',
+            progressMessage: 'Enviando áudio...',
+            progressPercent: 0,
             processingStartedAt: new Date(),
           } as any);
 

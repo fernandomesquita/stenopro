@@ -16,6 +16,8 @@ interface Transcription {
   room: string | null;
   status: 'uploading' | 'transcribing' | 'correcting' | 'ready' | 'archived' | 'error';
   errorMessage: string | null;
+  progressMessage: string | null;
+  progressPercent: number | null;
   durationSeconds: number | null;
   createdAt: Date | string;
   updatedAt: Date | string;
@@ -33,31 +35,37 @@ const STATUS_CONFIG = {
     label: 'Enviando',
     icon: Upload,
     color: 'text-blue-600 bg-blue-50 border-blue-200',
+    progressBarColor: 'bg-blue-600',
   },
   transcribing: {
     label: 'Transcrevendo',
     icon: Mic,
-    color: 'text-purple-600 bg-purple-50 border-purple-200',
+    color: 'text-yellow-600 bg-yellow-50 border-yellow-200',
+    progressBarColor: 'bg-yellow-500',
   },
   correcting: {
     label: 'Corrigindo',
     icon: Edit,
-    color: 'text-yellow-600 bg-yellow-50 border-yellow-200',
+    color: 'text-purple-600 bg-purple-50 border-purple-200',
+    progressBarColor: 'bg-purple-600',
   },
   ready: {
     label: 'Pronto',
     icon: Check,
     color: 'text-green-600 bg-green-50 border-green-200',
+    progressBarColor: 'bg-green-600',
   },
   archived: {
     label: 'Arquivado',
     icon: FileText,
     color: 'text-gray-600 bg-gray-50 border-gray-200',
+    progressBarColor: 'bg-gray-600',
   },
   error: {
     label: 'Erro',
     icon: AlertCircle,
     color: 'text-red-600 bg-red-50 border-red-200',
+    progressBarColor: 'bg-red-600',
   },
 };
 
@@ -135,10 +143,20 @@ export function TranscriptionCard({
       {/* Barra de progresso para processamento */}
       {isProcessing && (
         <div className="mb-4">
-          <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-            <div className="h-full bg-blue-600 rounded-full animate-pulse" style={{ width: '60%' }} />
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-sm font-medium text-gray-700">
+              {transcription.progressMessage || 'Processando...'}
+            </p>
+            <span className="text-sm font-semibold text-gray-700">
+              {transcription.progressPercent ?? 0}%
+            </span>
           </div>
-          <p className="text-xs text-gray-500 mt-1">Processando...</p>
+          <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+            <div
+              className={`h-full ${config.progressBarColor} rounded-full transition-all duration-500 ease-out`}
+              style={{ width: `${transcription.progressPercent ?? 0}%` }}
+            />
+          </div>
         </div>
       )}
 
