@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'react-hot-toast';
 import { trpc, trpcClient } from './lib/trpc';
 import App from './App.tsx';
 import './styles/globals.css';
@@ -21,6 +22,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     {/* @ts-ignore - Tipo temporário do tRPC */}
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
+        <Toaster position="top-right" />
         <App />
       </QueryClientProvider>
     {/* @ts-ignore - Tipo temporário do tRPC */}

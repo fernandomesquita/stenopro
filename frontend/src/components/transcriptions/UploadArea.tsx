@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react';
 import { Upload, File, X } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { Button } from '../common/Button';
 import { Input } from '../common/Input';
-import { Alert } from '../common/Alert';
 import { trpc } from '../../lib/trpc';
 
 interface UploadAreaProps {
@@ -14,24 +14,25 @@ export function UploadArea({ onUploadSuccess }: UploadAreaProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [room, setRoom] = useState('');
-  const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // @ts-ignore - Tipo temporário do tRPC
   const createMutation = trpc.transcriptions.create.useMutation({
     onSuccess: () => {
+      toast.success('Upload iniciado! A transcrição será processada automaticamente.', {
+        duration: 4000,
+      });
       // Resetar form
       setSelectedFile(null);
       setTitle('');
       setRoom('');
-      setError('');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
       onUploadSuccess?.();
     },
     onError: (error: any) => {
-      setError(error.message || 'Erro ao fazer upload');
+      toast.error(error.message || 'Erro ao fazer upload do áudio');
     },
   });
 
@@ -81,15 +82,14 @@ export function UploadArea({ onUploadSuccess }: UploadAreaProps) {
 
   // Handler de seleção de arquivo
   const handleFileSelect = (file: File) => {
-    setError('');
-
     const validationError = validateFile(file);
     if (validationError) {
-      setError(validationError);
+      toast.error(validationError);
       return;
     }
 
     setSelectedFile(file);
+    toast.success(`Arquivo "${file.name}" selecionado`);
 
     // Auto-preencher título com nome do arquivo (sem extensão)
     if (!title) {
@@ -110,12 +110,12 @@ export function UploadArea({ onUploadSuccess }: UploadAreaProps) {
     e.preventDefault();
 
     if (!selectedFile) {
-      setError('Selecione um arquivo de áudio');
+      toast.error('Selecione um arquivo de áudio');
       return;
     }
 
     if (!title.trim()) {
-      setError('Digite um título para a transcrição');
+      toast.error('Digite um título para a transcrição');
       return;
     }
 
@@ -140,7 +140,7 @@ export function UploadArea({ onUploadSuccess }: UploadAreaProps) {
       };
 
       reader.onerror = () => {
-        setError('Erro ao ler arquivo');
+        toast.error('Erro ao ler arquivo');
       };
     } catch (err) {
       // Erro já tratado no onError da mutation
@@ -235,13 +235,6 @@ export function UploadArea({ onUploadSuccess }: UploadAreaProps) {
           onChange={(e) => setRoom(e.target.value)}
         />
 
-        {/* Erro */}
-        {error && (
-          <Alert variant="danger" onClose={() => setError('')}>
-            {error}
-          </Alert>
-        )}
-
         {/* Botão de submit */}
         <Button
           type="submit"
@@ -253,14 +246,6 @@ export function UploadArea({ onUploadSuccess }: UploadAreaProps) {
         >
           {createMutation.isPending ? 'Enviando...' : 'Iniciar Transcrição'}
         </Button>
-
-        {/* Info sobre processamento */}
-        {createMutation.isPending && (
-          <Alert variant="info">
-            O áudio está sendo enviado. Após o upload, a transcrição será
-            processada automaticamente.
-          </Alert>
-        )}
       </form>
     </div>
   );

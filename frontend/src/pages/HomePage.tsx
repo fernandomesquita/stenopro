@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UploadArea } from '../components/transcriptions/UploadArea';
 import { TranscriptionList } from '../components/transcriptions/TranscriptionList';
 
 function HomePage() {
+  const navigate = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleUploadSuccess = () => {
@@ -11,9 +13,7 @@ function HomePage() {
   };
 
   const handleEdit = (id: number) => {
-    // TODO: Navegar para página de edição
-    console.log('Edit transcription:', id);
-    alert(`Edição da transcrição ${id} será implementada no próximo módulo`);
+    navigate(`/editor/${id}`);
   };
 
   return (

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { TranscriptionCard } from './TranscriptionCard';
 import { Input } from '../common/Input';
 import { Button } from '../common/Button';
@@ -35,7 +36,11 @@ export function TranscriptionList({ onEdit }: TranscriptionListProps) {
   // @ts-ignore - Tipo temporário do tRPC
   const reprocessMutation = trpc.transcriptions.reprocess.useMutation({
     onSuccess: () => {
+      toast.success('Transcrição enviada para reprocessamento');
       refetch();
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Erro ao reprocessar transcrição');
     },
   });
 
@@ -43,14 +48,16 @@ export function TranscriptionList({ onEdit }: TranscriptionListProps) {
   const handleDelete = async (id: number) => {
     // TODO: Implementar endpoint de delete no backend
     console.log('Delete transcription:', id);
-    alert('Funcionalidade de deletar será implementada em breve');
+    toast('Funcionalidade de deletar será implementada em breve', {
+      icon: 'ℹ️',
+    });
   };
 
   const handleReprocess = async (id: number) => {
     try {
       await reprocessMutation.mutateAsync(id);
     } catch (err) {
-      alert('Erro ao reprocessar transcrição');
+      // Erro já tratado no onError da mutation
     }
   };
 
