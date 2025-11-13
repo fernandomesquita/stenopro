@@ -57,9 +57,9 @@ export class StorageService {
         url,
         filename: uniqueFilename,
       };
-    } catch (error) {
-      console.error('[Storage] ❌ Erro ao salvar arquivo:', error.message);
-      throw new Error(`Falha ao salvar arquivo: ${error.message}`);
+    } catch (error: any) {
+      console.error('[Storage] ❌ Erro ao salvar arquivo:', error?.message || error);
+      throw new Error(`Falha ao salvar arquivo: ${error?.message || 'Erro desconhecido'}`);
     }
   }
   
@@ -74,8 +74,8 @@ export class StorageService {
         await fs.promises.unlink(filePath);
         console.log(`[Storage] Arquivo deletado: ${filename}`);
       }
-    } catch (error) {
-      console.error('[Storage] ❌ Erro ao deletar arquivo:', error.message);
+    } catch (error: any) {
+      console.error('[Storage] ❌ Erro ao deletar arquivo:', error?.message || error);
       // Não lançar erro - apenas log
     }
   }

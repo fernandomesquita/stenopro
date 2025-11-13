@@ -44,9 +44,9 @@ export class WhisperService {
         text: transcription.text,
         duration: transcription.duration || 0,
       };
-    } catch (error) {
-      console.error('[Whisper] ❌ Erro na transcrição:', error.message);
-      throw new Error(`Falha na transcrição: ${error.message}`);
+    } catch (error: any) {
+      console.error('[Whisper] ❌ Erro na transcrição:', error?.message || error);
+      throw new Error(`Falha na transcrição: ${error?.message || 'Erro desconhecido'}`);
     }
   }
 }

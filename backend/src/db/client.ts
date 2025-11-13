@@ -19,8 +19,8 @@ export async function testConnection() {
     await pool.query('SELECT 1');
     console.log('✅ Database connected successfully');
     return true;
-  } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
+  } catch (error: any) {
+    console.error('❌ Database connection failed:', error?.message || error);
     return false;
   }
 }
