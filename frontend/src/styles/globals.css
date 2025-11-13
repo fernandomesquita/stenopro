@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer utilities {
+  /* Foco visível para acessibilidade */
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary-600 ring-0;
+  }
+  
+  button:focus-visible {
+    @apply ring-2 ring-primary-500 ring-offset-2;
+  }
+}

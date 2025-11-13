@@ -1,0 +1,36 @@
+{
+  "name": "stenopro-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Backend do StenoPro - Sistema de transcrição parlamentar",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "NODE_ENV=development node --watch src/server.js",
+    "build": "tsc",
+    "start": "NODE_ENV=production node dist/server.js",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "keywords": ["transcription", "parliamentary", "whisper", "claude"],
+  "author": "Fernando Silva",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "@trpc/server": "^11.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "drizzle-orm": "^0.38.0",
+    "express": "^4.21.2",
+    "mysql2": "^3.11.5",
+    "openai": "^4.70.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.2",
+    "drizzle-kit": "^0.29.1",
+    "typescript": "^5.7.2"
+  }
+}
