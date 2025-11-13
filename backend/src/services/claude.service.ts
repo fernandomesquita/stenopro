@@ -51,12 +51,15 @@ export class ClaudeService {
       });
       
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
-      const correctedText = message.content[0].text;
-      
+
+      // Extrair texto da resposta (pode ser TextBlock ou ToolUseBlock)
+      const firstBlock = message.content[0];
+      const correctedText = firstBlock.type === 'text' ? firstBlock.text : '';
+
       console.log(`[Claude] ✅ Concluído em ${elapsed}s`);
       console.log(`[Claude] Tokens: ${message.usage.input_tokens} input + ${message.usage.output_tokens} output`);
       console.log(`[Claude] Caracteres: ${correctedText.length}`);
-      
+
       return {
         text: correctedText,
         tokensUsed: {
@@ -64,9 +67,9 @@ export class ClaudeService {
           output: message.usage.output_tokens,
         },
       };
-    } catch (error) {
-      console.error('[Claude] ❌ Erro na correção:', error.message);
-      throw new Error(`Falha na correção: ${error.message}`);
+    } catch (error: any) {
+      console.error('[Claude] ❌ Erro na correção:', error?.message || error);
+      throw new Error(`Falha na correção: ${error?.message || 'Erro desconhecido'}`);
     }
   }
   

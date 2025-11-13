@@ -60,18 +60,18 @@ export class ProcessingService {
         .where(eq(transcriptions.id, transcriptionId));
       
       console.log(`[Processing] ✅ Transcrição ${transcriptionId} processada com sucesso`);
-    } catch (error) {
-      console.error(`[Processing] ❌ Erro no processamento:`, error.message);
-      
+    } catch (error: any) {
+      console.error(`[Processing] ❌ Erro no processamento:`, error?.message || error);
+
       // Atualizar status de erro
       await db
         .update(transcriptions)
         .set({
           status: 'error',
-          errorMessage: error.message,
+          errorMessage: error?.message || 'Erro desconhecido',
         })
         .where(eq(transcriptions.id, transcriptionId));
-      
+
       throw error;
     }
   }
