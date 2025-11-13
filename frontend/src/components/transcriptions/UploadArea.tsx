@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Upload, File, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '../common/Button';
@@ -10,6 +11,7 @@ interface UploadAreaProps {
 }
 
 export function UploadArea({ onUploadSuccess }: UploadAreaProps) {
+  const queryClient = useQueryClient();
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
@@ -19,9 +21,24 @@ export function UploadArea({ onUploadSuccess }: UploadAreaProps) {
   // @ts-ignore - Tipo temporário do tRPC
   const createMutation = trpc.transcriptions.create.useMutation({
     onSuccess: () => {
+      console.log('[UploadArea] ✅ Upload concluído com sucesso, invalidando cache...');
+
       toast.success('Upload iniciado! A transcrição será processada automaticamente.', {
         duration: 4000,
       });
+
+      // Invalidar todas as queries de transcrições para forçar reload
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          // Invalida qualquer query que contenha 'transcriptions' na key
+          return query.queryKey.some((key) =>
+            typeof key === 'string' && key.includes('transcriptions')
+          );
+        },
+      });
+
+      console.log('[UploadArea] 🔄 Cache invalidado, lista será atualizada');
+
       // Resetar form
       setSelectedFile(null);
       setTitle('');
@@ -29,6 +46,7 @@ export function UploadArea({ onUploadSuccess }: UploadAreaProps) {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+
       onUploadSuccess?.();
     },
     onError: (error: any) => {

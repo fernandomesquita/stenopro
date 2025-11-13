@@ -13,42 +13,51 @@ export class ProcessingService {
    */
   async processTranscription(transcriptionId: number): Promise<void> {
     try {
-      console.log(`[Processing] Iniciando processamento da transcrição ${transcriptionId}`);
-      
+      console.log(`[Processing] 🚀 Iniciando processamento da transcrição ${transcriptionId}`);
+
       // Buscar transcrição
       const [transcription] = await db
         .select()
         .from(transcriptions)
         .where(eq(transcriptions.id, transcriptionId))
         .limit(1);
-      
+
       if (!transcription) {
         throw new Error(`Transcrição ${transcriptionId} não encontrada`);
       }
-      
-      // Atualizar status: transcrevendo
+
+      // ========================================
+      // ETAPA 1: TRANSCREVER COM WHISPER (33%)
+      // ========================================
+      console.log(`[Processing] 📝 Atualizando progresso para 33% (Transcrevendo)`);
       await this.updateStatus(transcriptionId, 'transcribing');
-      
-      // Etapa 1: Transcrição com Whisper
+      console.log(`[Processing] ✅ Progresso atualizado no banco, iniciando Whisper...`);
+
       const audioPath = storageService.getFilePath(transcription.audioFilename);
       const { text: rawText, duration } = await whisperService.transcribe(audioPath);
-      
-      // Salvar texto bruto
+
+      console.log(`[Processing] ✅ Whisper concluído, salvando texto bruto...`);
       await db
         .update(transcriptions)
         .set({
           rawText,
           durationSeconds: duration,
-        })
+        } as any)
         .where(eq(transcriptions.id, transcriptionId));
-      
-      // Atualizar status: corrigindo
+
+      // ========================================
+      // ETAPA 2: CORRIGIR COM CLAUDE (66%)
+      // ========================================
+      console.log(`[Processing] 🤖 Atualizando progresso para 66% (Corrigindo)`);
       await this.updateStatus(transcriptionId, 'correcting');
-      
-      // Etapa 2: Correção com Claude
+      console.log(`[Processing] ✅ Progresso atualizado no banco, iniciando Claude...`);
+
       const { text: correctedText } = await claudeService.correctText(rawText, transcriptionId);
-      
-      // Salvar texto corrigido e marcar como pronto
+
+      // ========================================
+      // ETAPA 3: FINALIZAR (100%)
+      // ========================================
+      console.log(`[Processing] 🎉 Atualizando progresso para 100% (Concluído)`);
       await db
         .update(transcriptions)
         .set({
@@ -60,8 +69,8 @@ export class ProcessingService {
           processingCompletedAt: new Date(),
         } as any)
         .where(eq(transcriptions.id, transcriptionId));
-      
-      console.log(`[Processing] ✅ Transcrição ${transcriptionId} processada com sucesso`);
+
+      console.log(`[Processing] ✅ Transcrição ${transcriptionId} processada com sucesso (100%)`);
     } catch (error: any) {
       console.error(`[Processing] ❌ Erro no processamento:`, error?.message || error);
 
@@ -99,7 +108,9 @@ export class ProcessingService {
 
     const progress = progressData[status];
 
-    await db
+    console.log(`[Processing] 📊 Atualizando progresso: ${progress.percent}% - "${progress.message}"`);
+
+    const result = await db
       .update(transcriptions)
       .set({
         status,
@@ -108,7 +119,7 @@ export class ProcessingService {
       } as any)
       .where(eq(transcriptions.id, transcriptionId));
 
-    console.log(`[Processing] Status atualizado: ${status} (${progress.percent}% - ${progress.message})`);
+    console.log(`[Processing] ✅ UPDATE executado com sucesso no banco (status: ${status}, ${progress.percent}%)`);
   }
   
   /**
