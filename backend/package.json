@@ -12,18 +12,24 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },
-  "keywords": ["transcription", "parliamentary", "whisper", "claude"],
+  "keywords": [
+    "transcription",
+    "parliamentary",
+    "whisper",
+    "claude"
+  ],
   "author": "Fernando Silva",
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
     "@trpc/server": "^11.0.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.6.1",
     "drizzle-orm": "^0.38.0",
     "express": "^4.21.2",
     "mysql2": "^3.11.5",
     "openai": "^4.70.3",
+    "tsx": "^4.20.6",
     "zod": "^3.23.8"
   },
   "devDependencies": {
