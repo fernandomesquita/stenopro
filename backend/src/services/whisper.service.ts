@@ -3,10 +3,12 @@ import fs from 'fs';
 
 export class WhisperService {
   private client: OpenAI;
-  
+
   constructor() {
     this.client = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
+      timeout: 300000, // 5 minutos (300 segundos)
+      maxRetries: 2,
     });
   }
   
@@ -53,17 +55,45 @@ export class WhisperService {
       const fileStats = fs.statSync(audioPath);
       console.log('[Whisper] 📤 Enviando arquivo para transcrição...');
       console.log('[Whisper] Caminho do arquivo:', audioPath);
-      console.log('[Whisper] Tamanho do arquivo:', (fileStats.size / 1024 / 1024).toFixed(2), 'MB');
+      console.log('[Whisper] 📊 Tamanho do arquivo:', fileStats.size, 'bytes');
+      console.log('[Whisper] 📊 Tamanho em MB:', (fileStats.size / 1024 / 1024).toFixed(2), 'MB');
 
       const startTime = Date.now();
 
-      const transcription = await this.client.audio.transcriptions.create({
-        file: fs.createReadStream(audioPath),
-        model: 'whisper-1',
-        language: 'pt',
-        response_format: 'verbose_json',
-        temperature: 0.0, // Mais determinístico
-      });
+      // RETRY MANUAL: tentar até 3 vezes com espera de 5s entre tentativas
+      let attempts = 0;
+      let transcription: any;
+
+      while (attempts < 3) {
+        try {
+          attempts++;
+          console.log(`[Whisper] 🔄 Tentativa ${attempts} de 3`);
+
+          transcription = await this.client.audio.transcriptions.create({
+            file: fs.createReadStream(audioPath),
+            model: 'whisper-1',
+            language: 'pt',
+            response_format: 'verbose_json',
+            temperature: 0.0, // Mais determinístico
+          });
+
+          // Sucesso! Sair do loop
+          console.log(`[Whisper] ✅ Tentativa ${attempts} bem-sucedida!`);
+          break;
+        } catch (retryError: any) {
+          console.error(`[Whisper] ❌ Tentativa ${attempts} falhou:`, retryError.message);
+
+          if (attempts === 3) {
+            // Última tentativa falhou, propagar erro
+            console.error('[Whisper] ❌ Todas as 3 tentativas falharam');
+            throw retryError;
+          }
+
+          // Aguardar 5 segundos antes de tentar novamente
+          console.log(`[Whisper] ⏳ Aguardando 5s antes da próxima tentativa...`);
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+      }
 
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
 
