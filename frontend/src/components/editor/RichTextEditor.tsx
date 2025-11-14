@@ -16,6 +16,35 @@ export function RichTextEditor({
   readOnly = false
 }: RichTextEditorProps) {
 
+  // Converter plain text para HTML se necessário
+  const convertedValue = useMemo(() => {
+    if (!value) return '';
+
+    console.log('[RichTextEditor] Value recebido:', {
+      length: value.length,
+      isHTML: value.includes('<p>') || value.includes('<div>'),
+      preview: value.substring(0, 200)
+    });
+
+    // Se já é HTML, usar direto
+    if (value.includes('<p>') || value.includes('<div>') || value.includes('<br>')) {
+      console.log('[RichTextEditor] ✅ Já é HTML');
+      return value;
+    }
+
+    // Se é plain text, converter para HTML preservando quebras de linha
+    console.log('[RichTextEditor] 🔄 Convertendo plain text para HTML');
+    const htmlValue = value
+      .split('\n\n')
+      .map(para => para.trim())
+      .filter(para => para.length > 0)
+      .map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`)
+      .join('');
+
+    console.log('[RichTextEditor] ✅ Convertido, length:', htmlValue.length);
+    return htmlValue;
+  }, [value]);
+
   // Toolbar minimalista: apenas itálico, marca-texto e indentação
   const modules = useMemo(() => ({
     toolbar: readOnly ? false : [
@@ -32,11 +61,28 @@ export function RichTextEditor({
     'indent'
   ];
 
+  const handleChange = (content: string) => {
+    console.log('[RichTextEditor] onChange:', {
+      length: content.length,
+      preview: content.substring(0, 100)
+    });
+    onChange(content);
+  };
+
+  // Se não tem conteúdo, mostrar placeholder
+  if (!convertedValue && readOnly) {
+    return (
+      <div className='p-6 text-gray-400 text-center'>
+        Nenhum conteúdo disponível
+      </div>
+    );
+  }
+
   return (
     <div className='quill-wrapper h-full'>
       <ReactQuill
-        value={value}
-        onChange={onChange}
+        value={convertedValue}
+        onChange={handleChange}
         modules={modules}
         formats={formats}
         placeholder={placeholder}
@@ -73,6 +119,11 @@ export function RichTextEditor({
 
         .quill-wrapper .ql-editor p {
           margin-bottom: 1em;
+        }
+
+        .quill-wrapper .ql-editor.ql-blank::before {
+          color: #9ca3af;
+          font-style: italic;
         }
 
         /* Esconder toolbar quando readonly */
