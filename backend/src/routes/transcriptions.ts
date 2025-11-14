@@ -260,9 +260,9 @@ export const transcriptionsRouter = router({
 
         // Criar registro no banco
         console.log('[tRPC CREATE] 💾 Inserindo no banco de dados...');
-        let result;
+        let transcriptionId: number;
         try {
-          result = await db
+          const result = await db
             .insert(transcriptions)
             .values({
               userId: 1, // MVP: usuário hardcoded
@@ -277,23 +277,35 @@ export const transcriptionsRouter = router({
             } as any);
 
           console.log('[tRPC CREATE] ✅ Registro inserido no banco');
+
+          // DEBUG: Inspecionar estrutura do result
+          console.log('[tRPC CREATE] 🔍 DEBUG - Tipo do result:', typeof result);
+          console.log('[tRPC CREATE] 🔍 DEBUG - Keys do result:', Object.keys(result || {}));
+          console.log('[tRPC CREATE] 🔍 DEBUG - result completo:', JSON.stringify(result, null, 2));
+
+          // Tentar obter ID de várias formas possíveis no Drizzle + MySQL
+          const possibleId = (result as any).insertId
+            || (result as any)[0]?.insertId
+            || (result as any).lastInsertRowid
+            || (result as any)[0]?.id;
+
+          console.log('[tRPC CREATE] 🔍 DEBUG - ID encontrado:', possibleId);
+
+          transcriptionId = Number(possibleId);
+
+          if (!transcriptionId || isNaN(transcriptionId)) {
+            console.error('[tRPC CREATE] ❌ Falha ao obter ID após todas as tentativas');
+            console.error('[tRPC CREATE] 📋 Valor final de transcriptionId:', transcriptionId);
+            throw new Error('Failed to get auto-increment ID from database insert');
+          }
+
+          console.log('[tRPC CREATE] 🆔 ID da transcrição criada:', transcriptionId);
         } catch (err: any) {
           console.error('[tRPC CREATE] ❌ Erro ao inserir no banco:', err.message);
           console.error('[tRPC CREATE] Stack:', err.stack);
           throw new TRPCError({
             code: 'INTERNAL_SERVER_ERROR',
             message: `Erro ao criar registro: ${err.message}`,
-          });
-        }
-
-        const transcriptionId = Number((result as any).insertId);
-        console.log('[tRPC CREATE] 🆔 ID da transcrição criada:', transcriptionId);
-
-        if (!transcriptionId || isNaN(transcriptionId)) {
-          console.error('[tRPC CREATE] ❌ ID inválido retornado do banco:', transcriptionId);
-          throw new TRPCError({
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'Erro ao obter ID da transcrição criada',
           });
         }
 
