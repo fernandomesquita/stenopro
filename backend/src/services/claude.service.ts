@@ -25,19 +25,32 @@ export class ClaudeService {
   }> {
     try {
       console.log(`[Claude] Corrigindo texto (${rawText.length} chars)`);
-      
+
+      // ========================================
+      // TESTE DE API KEY
+      // ========================================
+      console.log('[Claude] 🔑 Testando API key...');
+      console.log('[Claude] API key presente:', !!process.env.ANTHROPIC_API_KEY);
+      console.log('[Claude] Primeiros 10 chars:', process.env.ANTHROPIC_API_KEY?.substring(0, 10));
+
       const startTime = Date.now();
-      
+
       // Buscar prompt ativo
+      console.log('[Claude] 📋 Buscando prompt ativo...');
       const activePrompt = await this.getActivePrompt();
-      
+      console.log('[Claude] ✅ Prompt obtido:', activePrompt.substring(0, 50) + '...');
+
       // Buscar glossário (global + específico da transcrição)
+      console.log('[Claude] 📚 Buscando glossário...');
       const glossary = await this.getGlossary(transcriptionId);
-      
+      console.log('[Claude] ✅ Glossário obtido:', glossary ? `${glossary.split('\n').length} entradas` : 'vazio');
+
       // Construir prompt completo
       const prompt = this.buildPrompt(activePrompt, rawText, glossary);
-      
+      console.log('[Claude] 📝 Prompt construído:', prompt.length, 'caracteres');
+
       // Chamar Claude API
+      console.log('[Claude] 📤 Enviando requisição para API...');
       const message = await this.client.messages.create({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 16000,
@@ -49,7 +62,7 @@ export class ClaudeService {
           },
         ],
       });
-      
+
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
 
       // Extrair texto da resposta (pode ser TextBlock ou ToolUseBlock)
@@ -68,7 +81,14 @@ export class ClaudeService {
         },
       };
     } catch (error: any) {
-      console.error('[Claude] ❌ Erro na correção:', error?.message || error);
+      console.error('[Claude] ❌ Erro completo:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response?.data,
+        status: error.response?.status,
+        code: error.code,
+        type: error.type,
+      });
       throw new Error(`Falha na correção: ${error?.message || 'Erro desconhecido'}`);
     }
   }
