@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import { EditorPage } from './pages/EditorPage';
+import { SettingsPage } from './pages/SettingsPage';
 
 function App() {
   return (
@@ -9,10 +10,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/editor/:id" element={<EditorPage />} />
-          {/* TODO: Adicionar mais rotas:
-            - /settings (configurações)
-            - /glossary (glossário)
-          */}
+          <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </div>
     </Router>
