@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { router, publicProcedure } from '../lib/trpc.js';
 import { db } from '../db/client.js';
 import { glossaries } from '../db/schema.js';
-import { eq, and, or, like } from 'drizzle-orm';
+import { eq, and, or, like, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 
 /**
@@ -96,6 +96,13 @@ export const glossaryRouter = router({
   create: publicProcedure
     .input(createInputSchema)
     .mutation(async ({ input }) => {
+      console.group('[Glossary] === CRIAR TERMO ===');
+      console.log('Name:', input.name);
+      console.log('Info:', input.info);
+      console.log('TranscriptionId:', input.transcriptionId);
+      console.log('IsGlobal:', input.isGlobal);
+      console.groupEnd();
+
       try {
         const { name, info, transcriptionId, isGlobal } = input;
 
@@ -107,39 +114,45 @@ export const glossaryRouter = router({
           });
         }
 
-        // Verificar se termo já existe (mesmo nome + mesma transcrição/global)
-        const conditions = [like(glossaries.name, name)];
+        const nameLower = name.toLowerCase().trim();
+        console.log('[Glossary] Verificando duplicados para:', nameLower);
 
+        // Verificar se termo já existe (comparação case-insensitive)
+        let whereCondition;
         if (isGlobal) {
-          conditions.push(eq(glossaries.isGlobal, true));
+          whereCondition = sql`LOWER(name) = ${nameLower} AND is_global = 1`;
         } else if (transcriptionId) {
-          conditions.push(eq(glossaries.transcriptionId, transcriptionId));
+          whereCondition = sql`LOWER(name) = ${nameLower} AND transcription_id = ${transcriptionId}`;
         }
 
-        const [existing] = await db
+        const existing = await db
           .select()
           .from(glossaries)
-          .where(and(...conditions))
+          .where(whereCondition)
           .limit(1);
 
-        if (existing) {
+        if (existing.length > 0) {
+          console.warn('[Glossary] ⚠️ Termo já existe');
           throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: 'Termo já existe no glossário',
+            code: 'CONFLICT',
+            message: 'Este termo já existe no glossário',
           });
         }
+
+        console.log('[Glossary] ✅ Termo não existe, inserindo...');
 
         // Criar termo
         const result = await db
           .insert(glossaries)
           .values({
-            name,
-            info: info || null,
+            name: nameLower,
+            info: info?.trim() || null,
             transcriptionId: transcriptionId || null,
             isGlobal,
           } as any);
 
         const glossaryId = Number((result as any).insertId);
+        console.log('[Glossary] ✅ Termo criado, ID:', glossaryId);
 
         // Buscar termo criado
         const [created] = await db
@@ -149,14 +162,14 @@ export const glossaryRouter = router({
           .limit(1);
 
         return created;
-      } catch (error) {
+      } catch (error: any) {
+        console.error('[Glossary] ❌ ERRO:', error.message);
+
         if (error instanceof TRPCError) throw error;
 
-        console.error('[tRPC] Erro ao criar termo no glossário:', error);
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: 'Erro ao criar termo no glossário',
-          cause: error,
+          message: 'Erro ao criar termo: ' + error.message,
         });
       }
     }),

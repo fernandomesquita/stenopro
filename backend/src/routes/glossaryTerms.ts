@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { router, publicProcedure } from '../lib/trpc.js';
 import { db } from '../db/client.js';
 import { glossaryTerms } from '../db/schema.js';
-import { eq, and, or } from 'drizzle-orm';
+import { eq, and, or, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 
 /**
@@ -82,16 +82,43 @@ export const glossaryTermsRouter = router({
   create: publicProcedure
     .input(createInputSchema)
     .mutation(async ({ input }) => {
-      try {
-        console.log('[GlossaryTerms] ➕ Criando termo:', input.term, '→', input.correctSpelling);
+      console.group('[GlossaryTerms] === CRIAR TERMO ===');
+      console.log('Type:', input.type);
+      console.log('Term:', input.term);
+      console.log('CorrectSpelling:', input.correctSpelling);
+      console.groupEnd();
 
+      try {
+        const termLower = input.term.toLowerCase().trim();
+        console.log('[GlossaryTerms] Verificando duplicados para:', termLower);
+
+        // Verificar duplicados - query case-insensitive
+        const existing = await db
+          .select()
+          .from(glossaryTerms)
+          .where(
+            sql`type = ${input.type} AND LOWER(term) = ${termLower}`
+          )
+          .limit(1);
+
+        if (existing.length > 0) {
+          console.warn('[GlossaryTerms] ⚠️ Termo já existe');
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'Este termo já existe no glossário',
+          });
+        }
+
+        console.log('[GlossaryTerms] ✅ Termo não existe, inserindo...');
+
+        // Inserir
         const result = await db
           .insert(glossaryTerms)
           .values({
             type: input.type,
-            term: input.term,
-            correctSpelling: input.correctSpelling,
-            notes: input.notes || null,
+            term: termLower,
+            correctSpelling: input.correctSpelling.trim(),
+            notes: input.notes?.trim() || null,
           } as any);
 
         const termId = Number((result as any).insertId);
@@ -105,11 +132,13 @@ export const glossaryTermsRouter = router({
         console.log('[GlossaryTerms] ✅ Termo criado, ID:', termId);
         return created;
       } catch (error: any) {
-        console.error('[GlossaryTerms] ❌ Erro ao criar:', error.message);
+        console.error('[GlossaryTerms] ❌ ERRO:', error.message);
+
+        if (error instanceof TRPCError) throw error;
+
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: 'Erro ao criar termo no glossário',
-          cause: error,
+          message: 'Erro ao criar termo: ' + error.message,
         });
       }
     }),
