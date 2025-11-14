@@ -18,27 +18,65 @@ export function TranscriptionEditor({ transcriptionId, initialText }: Transcript
 
   // @ts-ignore
   const updateMutation = trpc.transcriptions.update.useMutation({
+    onMutate: async (variables: any) => {
+      console.group('🔄 OPTIMISTIC UPDATE');
+      console.log('Variables:', variables);
+      console.log('Canceling queries for transcription:', transcriptionId);
+      console.groupEnd();
+
+      // Cancel ongoing queries to prevent overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['transcriptions', 'getById'] });
+      await queryClient.cancelQueries({ queryKey: ['transcriptions'] });
+
+      // Snapshot previous value for rollback
+      const previousData = queryClient.getQueryData(['transcriptions', 'getById', { id: transcriptionId }]);
+
+      // Optimistically update cache
+      queryClient.setQueryData(['transcriptions', 'getById', { id: transcriptionId }], (old: any) => {
+        if (!old) return old;
+
+        console.group('📝 UPDATING CACHE OPTIMISTICALLY');
+        console.log('Old final_text length:', old.finalText?.length || 0);
+        console.log('New final_text length:', variables.finalText?.length || 0);
+        console.groupEnd();
+
+        return {
+          ...old,
+          finalText: variables.finalText !== undefined ? variables.finalText : old.finalText,
+          updatedAt: new Date(),
+        };
+      });
+
+      return { previousData };
+    },
+
     onSuccess: (data: any) => {
       console.group('✅ SAVE SUCCESS');
       console.log('Response:', data);
       console.log('Saved length:', data?.savedLength);
       console.groupEnd();
 
-      console.log('✅ Invalidando cache...');
-      queryClient.invalidateQueries({ queryKey: ['transcriptions'] });
-      queryClient.invalidateQueries({ queryKey: ['transcriptions', 'getById'] });
+      // Update local content reference
+      lastContent.current = text;
 
       setSaveStatus('saved');
       setLastSaved(new Date());
       toast.success('Salvo com sucesso!');
     },
-    onError: (error: any) => {
+
+    onError: (error: any, _variables: any, context: any) => {
       console.group('❌ SAVE ERROR');
       console.error('Error:', error);
       console.error('Error message:', error.message);
       console.error('Error data:', error.data);
       console.error('Error shape:', error.shape);
       console.groupEnd();
+
+      // Revert optimistic update on error
+      if (context?.previousData) {
+        console.log('⏪ Reverting to previous data');
+        queryClient.setQueryData(['transcriptions', 'getById', { id: transcriptionId }], context.previousData);
+      }
 
       setSaveStatus('unsaved');
       toast.error('Erro ao salvar: ' + error.message);

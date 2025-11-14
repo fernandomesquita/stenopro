@@ -26,6 +26,9 @@ export function EditorPage() {
   const [room, setRoom] = useState('');
   const [isEditingMetadata, setIsEditingMetadata] = useState(false);
 
+  // Fixed key to prevent editor remounting on cache updates
+  const [editorKey] = useState(() => `editor-${transcriptionId}-${Date.now()}`);
+
   // @ts-ignore - Tipo temporário do tRPC
   const { data: transcription, isLoading, error, refetch } = trpc.transcriptions.getById.useQuery(
     { id: transcriptionId },
@@ -312,6 +315,7 @@ export function EditorPage() {
 
             return (
               <TranscriptionEditor
+                key={editorKey}
                 transcriptionId={transcriptionId}
                 initialText={textToUse}
               />
