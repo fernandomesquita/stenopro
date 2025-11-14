@@ -185,23 +185,56 @@ export const transcriptionsRouter = router({
     .input(createInputSchema)
     .mutation(async ({ input }) => {
       try {
+        console.log('[tRPC CREATE] 🚀 Iniciando criação de transcrição');
         const { title, room, audioFile } = input;
+
+        console.log('[tRPC CREATE] 📋 Dados recebidos:', {
+          title,
+          room: room || 'N/A',
+          filename: audioFile.filename,
+          mimetype: audioFile.mimetype,
+          bufferSize: audioFile.buffer?.length || 0,
+        });
+
+        // Validar que audioFile.buffer existe
+        if (!audioFile.buffer || audioFile.buffer.length === 0) {
+          console.error('[tRPC CREATE] ❌ Buffer de áudio vazio ou ausente');
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Dados de áudio ausentes ou inválidos',
+          });
+        }
 
         // Validar tipo de arquivo
         const allowedMimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg'];
         if (!allowedMimeTypes.includes(audioFile.mimetype)) {
+          console.error('[tRPC CREATE] ❌ Tipo de arquivo não suportado:', audioFile.mimetype);
           throw new TRPCError({
             code: 'BAD_REQUEST',
             message: 'Formato de áudio não suportado. Use MP3, WAV ou OGG.',
           });
         }
 
+        console.log('[tRPC CREATE] ✅ Validações iniciais OK');
+
         // Decodificar buffer base64
-        const buffer = Buffer.from(audioFile.buffer, 'base64');
+        console.log('[tRPC CREATE] 🔄 Decodificando base64...');
+        let buffer: Buffer;
+        try {
+          buffer = Buffer.from(audioFile.buffer, 'base64');
+          console.log('[tRPC CREATE] ✅ Base64 decodificado:', buffer.length, 'bytes');
+        } catch (err: any) {
+          console.error('[tRPC CREATE] ❌ Erro ao decodificar base64:', err.message);
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Erro ao processar dados do áudio',
+          });
+        }
 
         // Validar tamanho (max 100MB)
         const maxSize = 100 * 1024 * 1024; // 100MB
         if (buffer.length > maxSize) {
+          console.error('[tRPC CREATE] ❌ Arquivo muito grande:', buffer.length, 'bytes');
           throw new TRPCError({
             code: 'BAD_REQUEST',
             message: 'Arquivo muito grande. Tamanho máximo: 100MB',
@@ -209,53 +242,98 @@ export const transcriptionsRouter = router({
         }
 
         // Salvar arquivo no storage
-        const { url, filename } = await storageService.saveAudio(
-          buffer,
-          audioFile.filename
-        );
+        console.log('[tRPC CREATE] 💾 Salvando arquivo no storage...');
+        let storageResult;
+        try {
+          storageResult = await storageService.saveAudio(buffer, audioFile.filename);
+          console.log('[tRPC CREATE] ✅ Arquivo salvo:', storageResult.filename);
+        } catch (err: any) {
+          console.error('[tRPC CREATE] ❌ Erro no storage:', err.message);
+          console.error('[tRPC CREATE] Stack:', err.stack);
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: `Erro ao salvar arquivo: ${err.message}`,
+          });
+        }
+
+        const { url, filename } = storageResult;
 
         // Criar registro no banco
-        const result = await db
-          .insert(transcriptions)
-          .values({
-            userId: 1, // MVP: usuário hardcoded
-            title,
-            room: room || null,
-            audioUrl: url,
-            audioFilename: filename,
-            status: 'uploading',
-            progressMessage: 'Enviando áudio...',
-            progressPercent: 0,
-            processingStartedAt: new Date(),
-          } as any);
+        console.log('[tRPC CREATE] 💾 Inserindo no banco de dados...');
+        let result;
+        try {
+          result = await db
+            .insert(transcriptions)
+            .values({
+              userId: 1, // MVP: usuário hardcoded
+              title,
+              room: room || null,
+              audioUrl: url,
+              audioFilename: filename,
+              status: 'uploading',
+              progressMessage: 'Enviando áudio...',
+              progressPercent: 0,
+              processingStartedAt: new Date(),
+            } as any);
+
+          console.log('[tRPC CREATE] ✅ Registro inserido no banco');
+        } catch (err: any) {
+          console.error('[tRPC CREATE] ❌ Erro ao inserir no banco:', err.message);
+          console.error('[tRPC CREATE] Stack:', err.stack);
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: `Erro ao criar registro: ${err.message}`,
+          });
+        }
 
         const transcriptionId = Number((result as any).insertId);
+        console.log('[tRPC CREATE] 🆔 ID da transcrição criada:', transcriptionId);
+
+        if (!transcriptionId || isNaN(transcriptionId)) {
+          console.error('[tRPC CREATE] ❌ ID inválido retornado do banco:', transcriptionId);
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Erro ao obter ID da transcrição criada',
+          });
+        }
 
         // Iniciar processamento em background (não aguardar)
+        console.log('[tRPC CREATE] 🚀 Iniciando processamento em background...');
         processingService
           .processTranscription(transcriptionId)
           .catch((error) => {
             console.error(
-              `[tRPC] Erro no processamento da transcrição ${transcriptionId}:`,
+              `[tRPC] ❌ Erro no processamento da transcrição ${transcriptionId}:`,
               error
             );
           });
 
         // Buscar transcrição criada
+        console.log('[tRPC CREATE] 🔍 Buscando transcrição criada...');
         const [created] = await db
           .select()
           .from(transcriptions)
           .where(eq(transcriptions.id, transcriptionId))
           .limit(1);
 
+        if (!created) {
+          console.error('[tRPC CREATE] ❌ Transcrição não encontrada após criação');
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Erro ao buscar transcrição criada',
+          });
+        }
+
+        console.log('[tRPC CREATE] ✅ Transcrição criada com sucesso:', transcriptionId);
         return created;
-      } catch (error) {
+      } catch (error: any) {
         if (error instanceof TRPCError) throw error;
 
-        console.error('[tRPC] Erro ao criar transcrição:', error);
+        console.error('[tRPC CREATE] ❌ Erro não tratado:', error?.message || error);
+        console.error('[tRPC CREATE] 📋 Stack completo:', error?.stack);
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: 'Erro ao criar transcrição',
+          message: `Erro ao criar transcrição: ${error?.message || 'Erro desconhecido'}`,
           cause: error,
         });
       }
@@ -367,6 +445,56 @@ export const transcriptionsRouter = router({
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: 'Erro ao reprocessar transcrição',
+          cause: error,
+        });
+      }
+    }),
+
+  /**
+   * 6. DELETE - Deletar transcrição
+   */
+  delete: publicProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .mutation(async ({ input }) => {
+      try {
+        const { id } = input;
+        console.log(`[tRPC DELETE] 🗑️ Deletando transcrição ${id}`);
+
+        // Verificar se transcrição existe
+        const [existing] = await db
+          .select()
+          .from(transcriptions)
+          .where(eq(transcriptions.id, id))
+          .limit(1);
+
+        if (!existing) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: `Transcrição ${id} não encontrada`,
+          });
+        }
+
+        // Deletar arquivo de áudio do storage
+        if (existing.audioFilename) {
+          console.log(`[tRPC DELETE] 🗑️ Deletando arquivo: ${existing.audioFilename}`);
+          await storageService.deleteAudio(existing.audioFilename);
+        }
+
+        // Deletar registro do banco
+        console.log(`[tRPC DELETE] 💾 Deletando registro do banco`);
+        await db
+          .delete(transcriptions)
+          .where(eq(transcriptions.id, id));
+
+        console.log(`[tRPC DELETE] ✅ Transcrição ${id} deletada com sucesso`);
+        return { success: true, id };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+
+        console.error('[tRPC] Erro ao deletar transcrição:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Erro ao deletar transcrição',
           cause: error,
         });
       }

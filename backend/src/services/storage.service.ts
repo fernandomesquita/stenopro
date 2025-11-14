@@ -38,20 +38,47 @@ export class StorageService {
     filename: string;
   }> {
     try {
+      console.log(`[Storage] 📥 Iniciando salvamento de áudio: ${filename}`);
+      console.log(`[Storage] 📊 Tamanho do buffer: ${buffer.length} bytes`);
+
+      // Validar buffer
+      if (!buffer || buffer.length === 0) {
+        throw new Error('Buffer de áudio vazio ou inválido');
+      }
+
+      // Validar filename
+      if (!filename || filename.trim() === '') {
+        throw new Error('Nome de arquivo inválido');
+      }
+
+      // Garantir que o diretório existe
+      this.ensureStorageDir();
+      console.log(`[Storage] 📁 Diretório de storage: ${this.storageDir}`);
+
       // Gerar nome único
       const timestamp = Date.now();
       const safeName = this.sanitizeFilename(filename);
       const uniqueFilename = `${timestamp}_${safeName}`;
       const filePath = path.join(this.storageDir, uniqueFilename);
-      
+
+      console.log(`[Storage] 💾 Salvando arquivo em: ${filePath}`);
+
       // Salvar arquivo
       await fs.promises.writeFile(filePath, buffer);
-      
-      console.log(`[Storage] Arquivo salvo: ${uniqueFilename}`);
-      
+
+      // Verificar que o arquivo foi salvo
+      const exists = fs.existsSync(filePath);
+      if (!exists) {
+        throw new Error('Arquivo não foi salvo corretamente');
+      }
+
+      const fileSize = (await fs.promises.stat(filePath)).size;
+      console.log(`[Storage] ✅ Arquivo salvo com sucesso: ${uniqueFilename} (${fileSize} bytes)`);
+
       // URL pública (Railway ou local)
       const url = this.getPublicUrl(uniqueFilename);
-      
+      console.log(`[Storage] 🔗 URL pública: ${url}`);
+
       return {
         path: filePath,
         url,
@@ -59,6 +86,7 @@ export class StorageService {
       };
     } catch (error: any) {
       console.error('[Storage] ❌ Erro ao salvar arquivo:', error?.message || error);
+      console.error('[Storage] 📋 Stack trace:', error?.stack);
       throw new Error(`Falha ao salvar arquivo: ${error?.message || 'Erro desconhecido'}`);
     }
   }

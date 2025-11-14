@@ -44,13 +44,23 @@ export function TranscriptionList({ onEdit }: TranscriptionListProps) {
     },
   });
 
-  // Mutation para deletar (placeholder - precisa ser implementado no backend)
+  // @ts-ignore - Tipo temporário do tRPC
+  const deleteMutation = trpc.transcriptions.delete.useMutation({
+    onSuccess: () => {
+      toast.success('Transcrição excluída com sucesso');
+      refetch();
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Erro ao excluir transcrição');
+    },
+  });
+
   const handleDelete = async (id: number) => {
-    // TODO: Implementar endpoint de delete no backend
-    console.log('Delete transcription:', id);
-    toast('Funcionalidade de deletar será implementada em breve', {
-      icon: 'ℹ️',
-    });
+    try {
+      await deleteMutation.mutateAsync({ id });
+    } catch (err) {
+      // Erro já tratado no onError da mutation
+    }
   };
 
   const handleReprocess = async (id: number) => {
