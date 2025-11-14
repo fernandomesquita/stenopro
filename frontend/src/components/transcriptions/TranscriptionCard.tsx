@@ -9,6 +9,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { Button } from '../common/Button';
+import { TranscriptionStats } from './TranscriptionStats';
 
 interface Transcription {
   id: number;
@@ -21,6 +22,14 @@ interface Transcription {
   durationSeconds: number | null;
   createdAt: Date | string;
   updatedAt: Date | string;
+  stats?: {
+    raw: { words: number; characters: number };
+    corrected: { words: number; characters: number };
+    final: { words: number; characters: number };
+    deputiesCount: number;
+    glossaryTermsCount: number;
+    processingTime: number | null;
+  };
 }
 
 interface TranscriptionCardProps {
@@ -160,8 +169,16 @@ export function TranscriptionCard({
         </div>
       )}
 
+      {/* Estatísticas (apenas quando pronto) */}
+      {transcription.status === 'ready' && transcription.stats && (
+        <TranscriptionStats
+          stats={transcription.stats}
+          duration={formatDuration(transcription.durationSeconds)}
+        />
+      )}
+
       {/* Ações */}
-      <div className="flex items-center space-x-2">
+      <div className={`flex items-center space-x-2 ${transcription.stats ? 'mt-4' : ''}`}>
         {transcription.status === 'ready' && onEdit && (
           <Button
             size="sm"

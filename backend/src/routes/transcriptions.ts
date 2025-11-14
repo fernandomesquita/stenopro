@@ -1,11 +1,48 @@
 import { z } from 'zod';
 import { router, publicProcedure } from '../lib/trpc.js';
 import { db } from '../db/client.js';
-import { transcriptions, promptTemplates } from '../db/schema.js';
+import { transcriptions, promptTemplates, glossaryTerms } from '../db/schema.js';
 import { eq, and, or, like, desc, asc, count } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { storageService } from '../services/storage.service.js';
 import { processingService } from '../services/processing.service.js';
+
+/**
+ * Helper functions para cálculo de estatísticas
+ */
+
+function calculateStats(text: string) {
+  if (!text) return { words: 0, characters: 0 };
+
+  const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+  const characters = text.length;
+
+  return { words, characters };
+}
+
+function countDeputyNames(text: string, glossary: any[]) {
+  if (!text || !glossary || glossary.length === 0) return 0;
+
+  const deputyNames = glossary
+    .filter(g => g.type === 'deputy')
+    .map(g => g.correctSpelling.toLowerCase());
+
+  const textLower = text.toLowerCase();
+
+  return deputyNames.filter(name => textLower.includes(name)).length;
+}
+
+function countGlossaryTerms(text: string, glossary: any[]) {
+  if (!text || !glossary || glossary.length === 0) return 0;
+
+  const terms = glossary
+    .filter(g => g.type === 'term')
+    .map(g => g.correctSpelling.toLowerCase());
+
+  const textLower = text.toLowerCase();
+
+  return terms.filter(term => textLower.includes(term)).length;
+}
 
 /**
  * Schemas de validação Zod
@@ -114,13 +151,47 @@ export const transcriptionsRouter = router({
           .from(transcriptions)
           .where(whereClause);
 
+        // Buscar glossário uma vez para todas as transcrições
+        const glossary = await db.select()
+          .from(glossaryTerms)
+          .execute();
+
+        // Adicionar estatísticas para cada transcrição
+        const itemsWithStats = items.map(t => {
+          const rawStats = calculateStats(t.rawText || '');
+          const correctedStats = calculateStats(t.correctedText || '');
+          const finalStats = calculateStats(t.finalText || t.correctedText || '');
+
+          const deputiesCount = countDeputyNames(t.correctedText || '', glossary);
+          const glossaryTermsCount = countGlossaryTerms(t.correctedText || '', glossary);
+
+          // Calcular tempo de processamento baseado em start e completed timestamps
+          const processingTime = t.processingStartedAt && t.processingCompletedAt
+            ? Math.round((new Date(t.processingCompletedAt).getTime() - new Date(t.processingStartedAt).getTime()) / 1000)
+            : null;
+
+          return {
+            ...t,
+            stats: {
+              raw: rawStats,
+              corrected: correctedStats,
+              final: finalStats,
+              deputiesCount,
+              glossaryTermsCount,
+              processingTime
+            }
+          };
+        });
+
+        console.log('[tRPC LIST] ✅ Encontradas:', itemsWithStats.length, 'transcrições com estatísticas');
+
         // Calcular metadados de paginação
         const totalPages = Math.ceil(total / limit);
         const hasNext = page < totalPages;
         const hasPrev = page > 1;
 
         return {
-          items,
+          items: itemsWithStats,
           pagination: {
             page,
             limit,
@@ -176,11 +247,53 @@ export const transcriptionsRouter = router({
         console.log('updatedAt:', transcription.updatedAt);
         console.groupEnd();
 
-        // Retornar com transcriptionText como alias para finalText
+        // Buscar glossário para cálculo de estatísticas
+        const glossary = await db.select()
+          .from(glossaryTerms)
+          .execute();
+
+        // Calcular estatísticas
+        const rawStats = calculateStats(transcription.rawText || '');
+        const correctedStats = calculateStats(transcription.correctedText || '');
+        const finalStats = calculateStats(transcription.finalText || transcription.correctedText || '');
+
+        const deputiesCount = countDeputyNames(
+          transcription.correctedText || '',
+          glossary
+        );
+
+        const glossaryTermsCount = countGlossaryTerms(
+          transcription.correctedText || '',
+          glossary
+        );
+
+        // Calcular tempo de processamento baseado em start e completed timestamps (em segundos)
+        const processingTime = transcription.processingStartedAt && transcription.processingCompletedAt
+          ? Math.round((new Date(transcription.processingCompletedAt).getTime() - new Date(transcription.processingStartedAt).getTime()) / 1000)
+          : null;
+
+        console.log('[getById] 📊 Estatísticas calculadas:', {
+          rawWords: rawStats.words,
+          correctedWords: correctedStats.words,
+          finalWords: finalStats.words,
+          deputies: deputiesCount,
+          glossaryTerms: glossaryTermsCount,
+          processingTime
+        });
+
+        // Retornar com transcriptionText como alias para finalText e estatísticas
         return {
           ...transcription,
           transcriptionText: transcription.finalText,
           audioDuration: transcription.durationSeconds,
+          stats: {
+            raw: rawStats,
+            corrected: correctedStats,
+            final: finalStats,
+            deputiesCount,
+            glossaryTermsCount,
+            processingTime
+          }
         };
       } catch (error) {
         if (error instanceof TRPCError) throw error;
