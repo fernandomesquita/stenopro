@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Volume2 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { TranscriptionEditor } from '@/components/editor/TranscriptionEditor';
+import { AudioPlayer } from '@/components/audio/AudioPlayer';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { Spinner } from '@/components/common/Spinner';
@@ -25,6 +27,7 @@ export function EditorPage() {
   const [title, setTitle] = useState('');
   const [room, setRoom] = useState('');
   const [isEditingMetadata, setIsEditingMetadata] = useState(false);
+  const [showAudioPlayer, setShowAudioPlayer] = useState(false);
 
   // Fixed key to prevent editor remounting on cache updates
   const [editorKey] = useState(() => `editor-${transcriptionId}-${Date.now()}`);
@@ -275,16 +278,17 @@ export function EditorPage() {
             </Button>
 
             {transcription.audioUrl && (
-              <a
-                href={transcription.audioUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  console.log('[EditorPage] Toggle player de áudio, URL:', transcription.audioUrl);
+                  setShowAudioPlayer(!showAudioPlayer);
+                }}
+                className="w-full flex items-center justify-center gap-2"
               >
-                <Button variant="secondary" className="w-full">
-                  🎧 Ouvir Áudio
-                </Button>
-              </a>
+                <Volume2 className="w-4 h-4" />
+                {showAudioPlayer ? 'Fechar Áudio' : 'Ouvir Áudio'}
+              </Button>
             )}
           </div>
         </div>
@@ -292,6 +296,14 @@ export function EditorPage() {
 
       {/* Editor Area - 70% */}
       <div className="flex-1 flex flex-col">
+        {/* Player de áudio (fixo no topo quando aberto) */}
+        {showAudioPlayer && transcription.audioUrl && (
+          <AudioPlayer
+            audioUrl={transcription.audioUrl}
+            onClose={() => setShowAudioPlayer(false)}
+          />
+        )}
+
         {transcription.status === 'ready' && (transcription.finalText || transcription.correctedText || transcription.rawText) ? (
           (() => {
             const textToUse = transcription.finalText || transcription.correctedText || transcription.rawText || '';
