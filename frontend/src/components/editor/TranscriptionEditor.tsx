@@ -91,7 +91,7 @@ export function TranscriptionEditor({
 
     updateMutation.mutate({
       id: transcriptionId,
-      transcriptionText: content,
+      finalText: content,
     });
   }, [editor, hasUnsavedChanges, isSaving, transcriptionId, updateMutation]);
 
@@ -219,7 +219,24 @@ export function TranscriptionEditor({
           <Button
             size="sm"
             variant="primary"
-            onClick={saveContent}
+            onClick={() => {
+              if (!editor || !hasUnsavedChanges || isSaving) return;
+
+              const content = editor.getHTML();
+              setIsSaving(true);
+
+              toast.promise(
+                updateMutation.mutateAsync({
+                  id: transcriptionId,
+                  finalText: content,
+                }),
+                {
+                  loading: 'Salvando...',
+                  success: 'Salvo com sucesso!',
+                  error: 'Erro ao salvar'
+                }
+              );
+            }}
             disabled={!hasUnsavedChanges || isSaving}
           >
             Salvar Agora
