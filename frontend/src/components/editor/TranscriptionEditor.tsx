@@ -73,7 +73,6 @@ export function TranscriptionEditor({
             class: 'mb-4',
           },
         },
-        hardBreak: true,
       }),
       CaixaAltaExtension,
     ],
