@@ -25,7 +25,32 @@ app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Servir arquivos de áudio (uploads)
 const uploadsDir = process.env.STORAGE_DIR || path.join(__dirname, '../uploads');
+
+// Middleware para logs e headers de áudio
+app.use('/uploads', (req, res, next) => {
+  console.log('[Server] 🎵 Requisição de áudio:', req.path);
+
+  // Headers CORS e audio
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('Cache-Control', 'public, max-age=31536000');
+
+  // Detectar tipo de arquivo
+  if (req.path.endsWith('.mp3')) {
+    res.setHeader('Content-Type', 'audio/mpeg');
+  } else if (req.path.endsWith('.wav')) {
+    res.setHeader('Content-Type', 'audio/wav');
+  } else if (req.path.endsWith('.ogg')) {
+    res.setHeader('Content-Type', 'audio/ogg');
+  }
+
+  next();
+});
+
 app.use('/uploads', express.static(uploadsDir));
+
+console.log('[Server] 📁 Servindo uploads de:', uploadsDir);
 
 // Health check
 app.get('/health', (req, res) => {

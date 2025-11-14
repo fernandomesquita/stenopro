@@ -281,6 +281,10 @@ export const transcriptionsRouter = router({
 
         const { url, filename } = storageResult;
 
+        // Usar caminho relativo ao invés de URL completa
+        const relativePath = `/uploads/${filename}`;
+        console.log('[tRPC CREATE] 📁 Caminho relativo do áudio:', relativePath);
+
         // Criar registro no banco
         console.log('[tRPC CREATE] 💾 Inserindo no banco de dados...');
         let transcriptionId: number;
@@ -291,7 +295,7 @@ export const transcriptionsRouter = router({
               userId: 1, // MVP: usuário hardcoded
               title,
               room: room || null,
-              audioUrl: url,
+              audioUrl: relativePath, // Caminho relativo '/uploads/...'
               audioFilename: filename,
               status: 'uploading',
               progressMessage: 'Enviando áudio...',

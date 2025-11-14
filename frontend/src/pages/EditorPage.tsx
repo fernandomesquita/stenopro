@@ -297,12 +297,23 @@ export function EditorPage() {
       {/* Editor Area - 70% */}
       <div className="flex-1 flex flex-col">
         {/* Player de áudio (fixo no topo quando aberto) */}
-        {showAudioPlayer && transcription.audioUrl && (
-          <AudioPlayer
-            audioUrl={transcription.audioUrl}
-            onClose={() => setShowAudioPlayer(false)}
-          />
-        )}
+        {showAudioPlayer && transcription.audioUrl && (() => {
+          // Construir URL completa se for caminho relativo
+          const audioUrl = transcription.audioUrl.startsWith('http')
+            ? transcription.audioUrl
+            : `${window.location.origin}${transcription.audioUrl}`;
+
+          console.log('[EditorPage] 🎵 Audio URL original:', transcription.audioUrl);
+          console.log('[EditorPage] 🔗 Audio URL construída:', audioUrl);
+          console.log('[EditorPage] 🌐 Origin:', window.location.origin);
+
+          return (
+            <AudioPlayer
+              audioUrl={audioUrl}
+              onClose={() => setShowAudioPlayer(false)}
+            />
+          );
+        })()}
 
         {transcription.status === 'ready' && (transcription.finalText || transcription.correctedText || transcription.rawText) ? (
           (() => {

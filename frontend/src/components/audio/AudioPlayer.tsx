@@ -14,32 +14,85 @@ export function AudioPlayer({ audioUrl, onClose }: AudioPlayerProps) {
   const [playbackRate, setPlaybackRate] = useState(1);
   const [volume, setVolume] = useState(1);
 
-  console.log('[AudioPlayer] Inicializado com URL:', audioUrl);
+  console.log('[AudioPlayer] 🎵 Inicializado com URL:', audioUrl);
+  console.log('[AudioPlayer] 🌐 Origin:', window.location.origin);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
+    console.log('[AudioPlayer] 🔍 Verificando áudio...');
+    console.log('[AudioPlayer] URL completa:', audioUrl);
+
     const updateTime = () => setCurrentTime(audio.currentTime);
     const updateDuration = () => {
       setDuration(audio.duration);
-      console.log('[AudioPlayer] Duração:', audio.duration);
+      console.log('[AudioPlayer] ✅ Duração:', audio.duration, 'segundos');
     };
     const handleEnded = () => {
       setIsPlaying(false);
-      console.log('[AudioPlayer] Reprodução finalizada');
+      console.log('[AudioPlayer] ⏹️ Reprodução finalizada');
+    };
+
+    const handleError = (e: Event) => {
+      const target = e.target as HTMLAudioElement;
+      console.error('[AudioPlayer] ❌ ERRO ao carregar áudio:', {
+        error: target.error,
+        code: target.error?.code,
+        message: target.error?.message,
+        networkState: audio.networkState,
+        readyState: audio.readyState,
+        src: audio.src
+      });
+
+      // Detalhe dos códigos de erro
+      if (target.error?.code === 1) console.error('[AudioPlayer] MEDIA_ERR_ABORTED: Usuário abortou');
+      if (target.error?.code === 2) console.error('[AudioPlayer] MEDIA_ERR_NETWORK: Erro de rede');
+      if (target.error?.code === 3) console.error('[AudioPlayer] MEDIA_ERR_DECODE: Erro ao decodificar');
+      if (target.error?.code === 4) console.error('[AudioPlayer] MEDIA_ERR_SRC_NOT_SUPPORTED: Formato não suportado');
+    };
+
+    const handleLoadedMetadata = () => {
+      console.log('[AudioPlayer] ✅ Metadata carregada');
+      console.log('[AudioPlayer] Duração total:', audio.duration, 'segundos');
+    };
+
+    const handleCanPlay = () => {
+      console.log('[AudioPlayer] ✅ Pode reproduzir');
+      console.log('[AudioPlayer] ReadyState:', audio.readyState);
+    };
+
+    const handleLoadStart = () => {
+      console.log('[AudioPlayer] 🔄 Iniciando carregamento...');
+    };
+
+    const handleProgress = () => {
+      if (audio.buffered.length > 0) {
+        const buffered = (audio.buffered.end(0) / audio.duration) * 100;
+        console.log('[AudioPlayer] 📊 Buffered:', buffered.toFixed(1) + '%');
+      }
     };
 
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateDuration);
     audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('loadstart', handleLoadStart);
+    audio.addEventListener('progress', handleProgress);
 
     return () => {
       audio.removeEventListener('timeupdate', updateTime);
       audio.removeEventListener('loadedmetadata', updateDuration);
       audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('loadstart', handleLoadStart);
+      audio.removeEventListener('progress', handleProgress);
     };
-  }, []);
+  }, [audioUrl]);
 
   const togglePlay = () => {
     const audio = audioRef.current;
