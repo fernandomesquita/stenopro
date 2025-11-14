@@ -138,6 +138,7 @@ export function EditorPage() {
           rawText={transcription.rawText || ''}
           correctedText={transcription.correctedText || ''}
           finalText={transcription.finalText || ''}
+          title={transcription.title}
         />
       </main>
     </div>

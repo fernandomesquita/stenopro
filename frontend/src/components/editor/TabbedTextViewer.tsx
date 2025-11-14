@@ -1,24 +1,27 @@
 import { useState, useEffect } from 'react';
-import { FileText, Sparkles, Edit3, Copy, Download, Save, X } from 'lucide-react';
+import { FileText, Sparkles, Edit3, Copy, Download, Save, X, GitCompare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { trpc } from '../../lib/trpc';
 import { RichTextEditor } from './RichTextEditor';
+import { TextComparator } from './TextComparator';
 import { useQueryClient } from '@tanstack/react-query';
 
-type TabType = 'raw' | 'corrected' | 'final';
+type TabType = 'raw' | 'corrected' | 'final' | 'compare';
 
 interface TabbedTextViewerProps {
   transcriptionId: number;
   rawText: string;
   correctedText: string;
   finalText: string;
+  title: string;
 }
 
 export function TabbedTextViewer({
   transcriptionId,
   rawText,
   correctedText,
-  finalText
+  finalText,
+  title
 }: TabbedTextViewerProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>('corrected');
@@ -146,6 +149,13 @@ export function TabbedTextViewer({
       icon: Edit3,
       content: savedFinalText, // Usar estado local
       description: 'Versão editável final'
+    },
+    {
+      id: 'compare' as TabType,
+      label: 'Comparar',
+      icon: GitCompare,
+      content: '',
+      description: 'Compare diferentes versões do texto'
     }
   ];
 
@@ -228,9 +238,10 @@ export function TabbedTextViewer({
             })}
           </div>
 
-          {/* Actions */}
-          <div className='flex gap-2'>
-            {activeTab === 'final' && !isEditing && (
+          {/* Actions - Esconder quando em modo comparação */}
+          {activeTab !== 'compare' && (
+            <div className='flex gap-2'>
+              {activeTab === 'final' && !isEditing && (
               <button
                 onClick={handleStartEdit}
                 className='flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors'
@@ -278,7 +289,8 @@ export function TabbedTextViewer({
                 </button>
               </>
             )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Tab Description */}
@@ -289,7 +301,16 @@ export function TabbedTextViewer({
 
       {/* Content Area */}
       <div className='flex-1 overflow-auto'>
-        {activeTab === 'final' ? (
+        {activeTab === 'compare' ? (
+          // ABA DE COMPARAÇÃO
+          <TextComparator
+            rawText={rawText || ''}
+            correctedText={correctedText || ''}
+            finalText={savedFinalText}
+            transcriptionId={transcriptionId}
+            title={title}
+          />
+        ) : activeTab === 'final' ? (
           // ABA FINAL
           isEditing ? (
             // EDITANDO: Mostrar Quill
