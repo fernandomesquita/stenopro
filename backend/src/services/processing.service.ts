@@ -15,6 +15,16 @@ export class ProcessingService {
     try {
       console.log(`[Processing] 🚀 Iniciando processamento da transcrição ${transcriptionId}`);
 
+      // VALIDAR VARIÁVEIS DE AMBIENTE
+      console.log('[Processing] 🔍 Verificando variáveis de ambiente...');
+      if (!process.env.OPENAI_API_KEY) {
+        throw new Error('OPENAI_API_KEY não configurada no ambiente');
+      }
+      if (!process.env.ANTHROPIC_API_KEY) {
+        throw new Error('ANTHROPIC_API_KEY não configurada no ambiente');
+      }
+      console.log('[Processing] ✅ Variáveis de ambiente OK');
+
       // Buscar transcrição
       const [transcription] = await db
         .select()
@@ -34,7 +44,40 @@ export class ProcessingService {
       console.log(`[Processing] ✅ Progresso atualizado no banco, iniciando Whisper...`);
 
       const audioPath = storageService.getFilePath(transcription.audioFilename);
-      const { text: rawText, duration } = await whisperService.transcribe(audioPath);
+
+      console.log('[Processing] 🎤 Chamando Whisper API...');
+      console.log('[Processing] 📁 Arquivo de áudio:', audioPath);
+
+      let rawText: string;
+      let duration: number;
+
+      try {
+        // Adicionar timeout de 5 minutos para Whisper
+        const whisperResult = await Promise.race([
+          whisperService.transcribe(audioPath),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Timeout: Whisper API demorou mais de 5 minutos')), 300000)
+          )
+        ]);
+
+        rawText = whisperResult.text;
+        duration = whisperResult.duration;
+
+        console.log('[Processing] ✅ Whisper API respondeu com sucesso');
+        console.log('[Processing] 📊 Duração do áudio:', duration, 'segundos');
+        console.log('[Processing] 📝 Texto transcrito:', rawText.substring(0, 100) + '...');
+      } catch (whisperError: any) {
+        console.error('[Processing] ❌ Erro ao chamar Whisper API:', whisperError.message);
+        console.error('[Processing] 📋 Stack trace:', whisperError.stack);
+
+        if (whisperError.message?.includes('ECONNREFUSED') || whisperError.message?.includes('ENOTFOUND')) {
+          throw new Error('Falha na conexão com Whisper API: verifique conexão de rede');
+        }
+        if (whisperError.message?.includes('Timeout')) {
+          throw new Error('Whisper API não respondeu em 5 minutos');
+        }
+        throw new Error(`Erro no Whisper: ${whisperError.message}`);
+      }
 
       console.log(`[Processing] ✅ Whisper concluído, salvando texto bruto...`);
       await db
@@ -52,7 +95,36 @@ export class ProcessingService {
       await this.updateStatus(transcriptionId, 'correcting');
       console.log(`[Processing] ✅ Progresso atualizado no banco, iniciando Claude...`);
 
-      const { text: correctedText } = await claudeService.correctText(rawText, transcriptionId);
+      console.log('[Processing] 🤖 Chamando Claude API...');
+      console.log('[Processing] 📝 Tamanho do texto a corrigir:', rawText.length, 'caracteres');
+
+      let correctedText: string;
+
+      try {
+        // Adicionar timeout de 5 minutos para Claude
+        const claudeResult = await Promise.race([
+          claudeService.correctText(rawText, transcriptionId),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Timeout: Claude API demorou mais de 5 minutos')), 300000)
+          )
+        ]);
+
+        correctedText = claudeResult.text;
+
+        console.log('[Processing] ✅ Claude API respondeu com sucesso');
+        console.log('[Processing] 📝 Texto corrigido:', correctedText.substring(0, 100) + '...');
+      } catch (claudeError: any) {
+        console.error('[Processing] ❌ Erro ao chamar Claude API:', claudeError.message);
+        console.error('[Processing] 📋 Stack trace:', claudeError.stack);
+
+        if (claudeError.message?.includes('ECONNREFUSED') || claudeError.message?.includes('ENOTFOUND')) {
+          throw new Error('Falha na conexão com Claude API: verifique conexão de rede');
+        }
+        if (claudeError.message?.includes('Timeout')) {
+          throw new Error('Claude API não respondeu em 5 minutos');
+        }
+        throw new Error(`Erro no Claude: ${claudeError.message}`);
+      }
 
       // ========================================
       // ETAPA 3: FINALIZAR (100%)
@@ -72,14 +144,33 @@ export class ProcessingService {
 
       console.log(`[Processing] ✅ Transcrição ${transcriptionId} processada com sucesso (100%)`);
     } catch (error: any) {
-      console.error(`[Processing] ❌ Erro no processamento:`, error?.message || error);
+      console.error(`[Processing] ❌ ERRO CRÍTICO no processamento:`, error?.message || error);
+      console.error(`[Processing] 📋 Stack trace completo:`, error?.stack);
+
+      // Identificar tipo de erro
+      let errorType = 'Erro desconhecido';
+      if (error.message?.includes('ECONNREFUSED')) {
+        errorType = 'Connection refused: servidor não está acessível';
+      } else if (error.message?.includes('ENOTFOUND')) {
+        errorType = 'DNS error: host não encontrado';
+      } else if (error.message?.includes('ETIMEDOUT')) {
+        errorType = 'Connection timeout: servidor não respondeu';
+      } else if (error.message?.includes('Timeout')) {
+        errorType = 'Timeout: operação demorou mais de 5 minutos';
+      } else if (error.message?.includes('API_KEY')) {
+        errorType = 'Variável de ambiente não configurada';
+      }
+
+      console.error(`[Processing] 🔍 Tipo de erro identificado: ${errorType}`);
+
+      const errorMessage = `${errorType}: ${error?.message || 'Erro desconhecido'}`;
 
       // Atualizar status de erro
       await db
         .update(transcriptions)
         .set({
           status: 'error',
-          errorMessage: error?.message || 'Erro desconhecido',
+          errorMessage: errorMessage,
           progressMessage: 'Erro no processamento',
           progressPercent: 0,
         } as any)

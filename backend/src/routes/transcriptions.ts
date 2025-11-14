@@ -416,6 +416,8 @@ export const transcriptionsRouter = router({
     .input(z.number().int().positive())
     .mutation(async ({ input: id }) => {
       try {
+        console.log(`[tRPC REPROCESS] 🔄 Iniciando reprocessamento da transcrição ${id}`);
+
         // Verificar se transcrição existe
         const [existing] = await db
           .select()
@@ -424,20 +426,27 @@ export const transcriptionsRouter = router({
           .limit(1);
 
         if (!existing) {
+          console.error(`[tRPC REPROCESS] ❌ Transcrição ${id} não encontrada`);
           throw new TRPCError({
             code: 'NOT_FOUND',
             message: `Transcrição ${id} não encontrada`,
           });
         }
 
+        console.log(`[tRPC REPROCESS] ✅ Transcrição encontrada: "${existing.title}"`);
+
         // Verificar se arquivo de áudio ainda existe
+        console.log(`[tRPC REPROCESS] 🔍 Verificando existência do arquivo: ${existing.audioFilename}`);
         const fileExists = await storageService.fileExists(existing.audioFilename);
         if (!fileExists) {
+          console.error(`[tRPC REPROCESS] ❌ Arquivo de áudio não encontrado: ${existing.audioFilename}`);
           throw new TRPCError({
             code: 'BAD_REQUEST',
             message: 'Arquivo de áudio não encontrado. Não é possível reprocessar.',
           });
         }
+
+        console.log(`[tRPC REPROCESS] ✅ Arquivo de áudio existe, iniciando reprocessamento...`);
 
         // Reprocessar
         await processingService.reprocessTranscription(id);
@@ -449,11 +458,13 @@ export const transcriptionsRouter = router({
           .where(eq(transcriptions.id, id))
           .limit(1);
 
+        console.log(`[tRPC REPROCESS] ✅ Reprocessamento iniciado com sucesso`);
+
         return updated;
       } catch (error) {
         if (error instanceof TRPCError) throw error;
 
-        console.error('[tRPC] Erro ao reprocessar transcrição:', error);
+        console.error('[tRPC REPROCESS] ❌ Erro ao reprocessar transcrição:', error);
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: 'Erro ao reprocessar transcrição',
