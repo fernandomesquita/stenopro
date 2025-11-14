@@ -64,7 +64,14 @@ function PromptsTab() {
   const [isCreating, setIsCreating] = useState(false);
 
   // @ts-ignore
-  const { data: templates = [], refetch } = trpc.promptTemplates.list.useQuery();
+  const { data: templatesRaw = [], refetch } = trpc.promptTemplates.list.useQuery();
+
+  // Ordenar: padrão primeiro, depois alfabético
+  const templates = [...templatesRaw].sort((a: any, b: any) => {
+    if (a.isDefault && !b.isDefault) return -1;
+    if (!a.isDefault && b.isDefault) return 1;
+    return a.name.localeCompare(b.name);
+  });
 
   // @ts-ignore
   const createMutation = trpc.promptTemplates.create.useMutation({
@@ -106,6 +113,17 @@ function PromptsTab() {
     },
   });
 
+  // @ts-ignore
+  const setDefaultMutation = trpc.promptTemplates.update.useMutation({
+    onSuccess: () => {
+      toast.success('Template marcado como padrão!');
+      refetch();
+    },
+    onError: (error: any) => {
+      toast.error('Erro ao marcar como padrão: ' + error.message);
+    },
+  });
+
   const handleSave = () => {
     if (!editingName.trim()) {
       toast.error('Nome do template é obrigatório');
@@ -141,7 +159,7 @@ function PromptsTab() {
 
   const handleSetAsDefault = () => {
     if (selectedTemplate) {
-      updateMutation.mutate({
+      setDefaultMutation.mutate({
         id: selectedTemplate,
         isDefault: true,
       });
@@ -156,8 +174,17 @@ function PromptsTab() {
   };
 
   const handleDelete = () => {
-    if (selectedTemplate && window.confirm('Tem certeza que deseja deletar este template?')) {
-      deleteMutation.mutate({ id: selectedTemplate });
+    if (selectedTemplate) {
+      const template = templates.find((t: any) => t.id === selectedTemplate);
+
+      if (template?.isDefault) {
+        toast.error('Não é possível deletar o template padrão!');
+        return;
+      }
+
+      if (window.confirm(`Tem certeza que deseja deletar '${template?.name}'?`)) {
+        deleteMutation.mutate({ id: selectedTemplate });
+      }
     }
   };
 
@@ -187,18 +214,30 @@ function PromptsTab() {
               <button
                 key={template.id}
                 onClick={() => handleSelectTemplate(template)}
-                className={`w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors ${
+                className={`w-full text-left p-3 rounded transition-all ${
                   selectedTemplate === template.id
-                    ? 'bg-blue-50 border-2 border-blue-600'
-                    : 'border border-gray-200'
+                    ? (template.isDefault
+                        ? 'bg-green-50 border-2 border-green-600 shadow-md'
+                        : 'bg-blue-50 border-2 border-blue-600')
+                    : (template.isDefault
+                        ? 'border-2 border-green-300 hover:border-green-400 hover:bg-green-50'
+                        : 'border border-gray-200 hover:bg-gray-50')
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-gray-900">{template.name}</span>
-                  {template.isDefault && (
-                    <Check className="w-4 h-4 text-green-600" />
+                <div className="flex items-center justify-between mb-1">
+                  <span className={`font-medium ${template.isDefault ? 'text-green-700' : 'text-gray-900'}`}>
+                    {template.name}
+                  </span>
+                  {selectedTemplate === template.id && (
+                    <Check className="w-4 h-4 text-blue-600" />
                   )}
                 </div>
+
+                {template.isDefault && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                    ✓ Padrão
+                  </span>
+                )}
               </button>
             ))
           )}
@@ -247,19 +286,27 @@ function PromptsTab() {
 
               {!isCreating && selectedTemplate && (
                 <>
-                  <button
-                    onClick={handleSetAsDefault}
-                    disabled={updateMutation.isPending}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <Check className="w-4 h-4" />
-                    Marcar como Padrão
-                  </button>
+                  {!templates.find((t: any) => t.id === selectedTemplate)?.isDefault ? (
+                    <button
+                      onClick={handleSetAsDefault}
+                      disabled={setDefaultMutation.isPending}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Check className="w-4 h-4" />
+                      Marcar como Padrão
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg border border-green-300">
+                      <Check className="w-4 h-4" />
+                      Template Padrão
+                    </div>
+                  )}
 
                   <button
                     onClick={handleDelete}
-                    disabled={deleteMutation.isPending}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ml-auto"
+                    disabled={deleteMutation.isPending || templates.find((t: any) => t.id === selectedTemplate)?.isDefault}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors ml-auto"
+                    title={templates.find((t: any) => t.id === selectedTemplate)?.isDefault ? 'Não é possível deletar o template padrão' : ''}
                   >
                     <Trash2 className="w-4 h-4" />
                     Deletar
