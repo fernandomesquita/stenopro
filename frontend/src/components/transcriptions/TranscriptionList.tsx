@@ -7,7 +7,6 @@ import { Button } from '../common/Button';
 import { Spinner } from '../common/Spinner';
 import { Alert } from '../common/Alert';
 import { trpc } from '../../lib/trpc';
-import { usePollTranscription } from '../../hooks/usePollTranscription';
 
 interface TranscriptionListProps {
   onEdit?: (id: number) => void;
