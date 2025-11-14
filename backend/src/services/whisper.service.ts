@@ -1,20 +1,24 @@
-import OpenAI from 'openai';
+import Groq from 'groq-sdk';
 import fs from 'fs';
 
 export class WhisperService {
-  private client: OpenAI;
+  private groq: Groq;
 
   constructor() {
-    this.client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-      timeout: 300000, // 5 minutos (300 segundos)
-      maxRetries: 2,
+    if (!process.env.GROQ_API_KEY) {
+      throw new Error('GROQ_API_KEY não configurada no ambiente');
+    }
+
+    this.groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY,
     });
+
+    console.log('[Groq] ✅ Serviço Whisper inicializado com Groq');
   }
-  
+
   /**
-   * Transcreve um arquivo de áudio usando Whisper API
-   * 
+   * Transcreve um arquivo de áudio usando Groq Whisper Large v3
+   *
    * @param audioPath - Caminho local do arquivo de áudio
    * @returns Objeto com texto transcrito e metadados
    * @throws {Error} Se a transcrição falhar
@@ -24,89 +28,40 @@ export class WhisperService {
     duration: number;
   }> {
     try {
-      console.log(`[Whisper] Transcrevendo: ${audioPath}`);
+      console.log('[Groq] 🎤 Iniciando transcrição com Whisper Large v3');
+      console.log('[Groq] 📁 Arquivo:', audioPath);
 
-      // ========================================
-      // TESTE DE API KEY E CONEXÃO
-      // ========================================
-      console.log('[Whisper] 🔑 Testando API key...');
-      console.log('[Whisper] API key presente:', !!process.env.OPENAI_API_KEY);
-      console.log('[Whisper] Primeiros 10 chars:', process.env.OPENAI_API_KEY?.substring(0, 10));
-
-      // Teste simples da API
-      try {
-        const testResponse = await fetch('https://api.openai.com/v1/models', {
-          headers: { 'Authorization': 'Bearer ' + process.env.OPENAI_API_KEY }
-        });
-        console.log('[Whisper] ✅ Teste de conexão OK, status:', testResponse.status);
-        if (!testResponse.ok) {
-          const errorText = await testResponse.text();
-          console.error('[Whisper] ❌ API retornou erro:', errorText);
-        }
-      } catch (testError: any) {
-        console.error('[Whisper] ❌ Falha no teste de conexão:', testError.message);
-      }
-
-      // Verificar arquivo existe
+      // Verificar se arquivo existe
       if (!fs.existsSync(audioPath)) {
         throw new Error(`Arquivo de áudio não encontrado: ${audioPath}`);
       }
 
-      const fileStats = fs.statSync(audioPath);
-      console.log('[Whisper] 📤 Enviando arquivo para transcrição...');
-      console.log('[Whisper] Caminho do arquivo:', audioPath);
-      console.log('[Whisper] 📊 Tamanho do arquivo:', fileStats.size, 'bytes');
-      console.log('[Whisper] 📊 Tamanho em MB:', (fileStats.size / 1024 / 1024).toFixed(2), 'MB');
+      const stats = fs.statSync(audioPath);
+      console.log('[Groq] 📊 Tamanho do arquivo:', stats.size, 'bytes');
+      console.log('[Groq] 📊 Tamanho em MB:', (stats.size / 1024 / 1024).toFixed(2), 'MB');
 
       const startTime = Date.now();
 
-      // RETRY MANUAL: tentar até 3 vezes com espera de 5s entre tentativas
-      let attempts = 0;
-      let transcription: any;
-
-      while (attempts < 3) {
-        try {
-          attempts++;
-          console.log(`[Whisper] 🔄 Tentativa ${attempts} de 3`);
-
-          transcription = await this.client.audio.transcriptions.create({
-            file: fs.createReadStream(audioPath),
-            model: 'whisper-1',
-            language: 'pt',
-            response_format: 'verbose_json',
-            temperature: 0.0, // Mais determinístico
-          });
-
-          // Sucesso! Sair do loop
-          console.log(`[Whisper] ✅ Tentativa ${attempts} bem-sucedida!`);
-          break;
-        } catch (retryError: any) {
-          console.error(`[Whisper] ❌ Tentativa ${attempts} falhou:`, retryError.message);
-
-          if (attempts === 3) {
-            // Última tentativa falhou, propagar erro
-            console.error('[Whisper] ❌ Todas as 3 tentativas falharam');
-            throw retryError;
-          }
-
-          // Aguardar 5 segundos antes de tentar novamente
-          console.log(`[Whisper] ⏳ Aguardando 5s antes da próxima tentativa...`);
-          await new Promise(resolve => setTimeout(resolve, 5000));
-        }
-      }
+      const transcription = await this.groq.audio.transcriptions.create({
+        file: fs.createReadStream(audioPath),
+        model: 'whisper-large-v3',
+        language: 'pt',
+        response_format: 'verbose_json',
+        temperature: 0.0,
+      });
 
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
 
-      console.log(`[Whisper] ✅ Concluído em ${elapsed}s`);
-      console.log(`[Whisper] Duração do áudio: ${transcription.duration}s`);
-      console.log(`[Whisper] Caracteres: ${transcription.text.length}`);
+      console.log('[Groq] ✅ Transcrição concluída em', elapsed, 'segundos');
+      console.log('[Groq] 📝 Duração do áudio:', transcription.duration, 'segundos');
+      console.log('[Groq] 📝 Caracteres transcritos:', transcription.text.length);
 
       return {
         text: transcription.text,
         duration: transcription.duration || 0,
       };
     } catch (error: any) {
-      console.error('[Whisper] ❌ Erro completo:', {
+      console.error('[Groq] ❌ Erro completo:', {
         message: error.message,
         stack: error.stack,
         response: error.response?.data,

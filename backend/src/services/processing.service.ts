@@ -17,8 +17,8 @@ export class ProcessingService {
 
       // VALIDAR VARIÁVEIS DE AMBIENTE
       console.log('[Processing] 🔍 Verificando variáveis de ambiente...');
-      if (!process.env.OPENAI_API_KEY) {
-        throw new Error('OPENAI_API_KEY não configurada no ambiente');
+      if (!process.env.GROQ_API_KEY) {
+        throw new Error('GROQ_API_KEY não configurada no ambiente');
       }
       if (!process.env.ANTHROPIC_API_KEY) {
         throw new Error('ANTHROPIC_API_KEY não configurada no ambiente');
@@ -45,39 +45,14 @@ export class ProcessingService {
 
       const audioPath = storageService.getFilePath(transcription.audioFilename);
 
-      console.log('[Processing] 🎤 Chamando Whisper API...');
+      console.log('[Processing] 🎤 Chamando Groq Whisper API...');
       console.log('[Processing] 📁 Arquivo de áudio:', audioPath);
 
-      let rawText: string;
-      let duration: number;
+      const { text: rawText, duration } = await whisperService.transcribe(audioPath);
 
-      try {
-        // Adicionar timeout de 5 minutos para Whisper
-        const whisperResult = await Promise.race([
-          whisperService.transcribe(audioPath),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Timeout: Whisper API demorou mais de 5 minutos')), 300000)
-          )
-        ]);
-
-        rawText = whisperResult.text;
-        duration = whisperResult.duration;
-
-        console.log('[Processing] ✅ Whisper API respondeu com sucesso');
-        console.log('[Processing] 📊 Duração do áudio:', duration, 'segundos');
-        console.log('[Processing] 📝 Texto transcrito:', rawText.substring(0, 100) + '...');
-      } catch (whisperError: any) {
-        console.error('[Processing] ❌ Erro ao chamar Whisper API:', whisperError.message);
-        console.error('[Processing] 📋 Stack trace:', whisperError.stack);
-
-        if (whisperError.message?.includes('ECONNREFUSED') || whisperError.message?.includes('ENOTFOUND')) {
-          throw new Error('Falha na conexão com Whisper API: verifique conexão de rede');
-        }
-        if (whisperError.message?.includes('Timeout')) {
-          throw new Error('Whisper API não respondeu em 5 minutos');
-        }
-        throw new Error(`Erro no Whisper: ${whisperError.message}`);
-      }
+      console.log('[Processing] ✅ Groq Whisper respondeu com sucesso');
+      console.log('[Processing] 📊 Duração do áudio:', duration, 'segundos');
+      console.log('[Processing] 📝 Texto transcrito:', rawText.substring(0, 100) + '...');
 
       console.log(`[Processing] ✅ Whisper concluído, salvando texto bruto...`);
       await db
