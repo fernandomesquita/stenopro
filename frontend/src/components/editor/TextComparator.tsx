@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
 import { FileText, Download, ArrowLeftRight } from 'lucide-react';
+import { TextNormalizer } from '../../utils/textNormalizer';
 
 type ComparisonMode = 'raw-corrected' | 'corrected-final' | 'raw-final';
 type ViewMode = 'split' | 'unified';
@@ -26,34 +27,55 @@ export function TextComparator({
 
   console.log('[TextComparator] Modo:', comparisonMode, 'View:', viewMode);
 
-  // Definir textos baseado no modo
+  // Normalizar textos ANTES de comparar
   const { oldText, newText, oldTitle, newTitle } = useMemo(() => {
+    console.group('[TextComparator] Normalizando textos');
+
+    let oldRaw = '';
+    let newRaw = '';
+    let oldLabel = '';
+    let newLabel = '';
+
     switch (comparisonMode) {
       case 'raw-corrected':
-        return {
-          oldText: rawText || '',
-          newText: correctedText || '',
-          oldTitle: '📄 Raw (Whisper)',
-          newTitle: '🤖 Corrigido (Claude)'
-        };
+        oldRaw = rawText || '';
+        newRaw = correctedText || '';
+        oldLabel = '📄 Raw (Whisper)';
+        newLabel = '🤖 Corrigido (Claude)';
+        break;
       case 'corrected-final':
-        return {
-          oldText: correctedText || '',
-          newText: finalText || correctedText || '',
-          oldTitle: '🤖 Corrigido (Claude)',
-          newTitle: '✏️ Final (Editado)'
-        };
+        oldRaw = correctedText || '';
+        newRaw = finalText || correctedText || '';
+        oldLabel = '🤖 Corrigido (Claude)';
+        newLabel = '✏️ Final (Editado)';
+        break;
       case 'raw-final':
-        return {
-          oldText: rawText || '',
-          newText: finalText || correctedText || '',
-          oldTitle: '📄 Raw (Whisper)',
-          newTitle: '✏️ Final'
-        };
+        oldRaw = rawText || '';
+        newRaw = finalText || correctedText || '';
+        oldLabel = '📄 Raw (Whisper)';
+        newLabel = '✏️ Final';
+        break;
     }
+
+    // NORMALIZAR: remover HTML, manter apenas texto
+    const normalizedOld = TextNormalizer.normalizeForComparison(oldRaw);
+    const normalizedNew = TextNormalizer.normalizeForComparison(newRaw);
+
+    console.log('Old (original):', oldRaw.substring(0, 100));
+    console.log('Old (normalized):', normalizedOld.substring(0, 100));
+    console.log('New (original):', newRaw.substring(0, 100));
+    console.log('New (normalized):', normalizedNew.substring(0, 100));
+    console.groupEnd();
+
+    return {
+      oldText: normalizedOld,
+      newText: normalizedNew,
+      oldTitle: oldLabel,
+      newTitle: newLabel
+    };
   }, [comparisonMode, rawText, correctedText, finalText]);
 
-  // Calcular estatísticas
+  // Calcular estatísticas com textos normalizados
   const stats = useMemo(() => {
     if (!oldText || !newText) return null;
 
@@ -67,6 +89,18 @@ export function TextComparator({
 
     const wordDiff = newWords.length - oldWords.length;
 
+    // Calcular similaridade
+    const similarity = TextNormalizer.areEqual(oldText, newText)
+      ? 100
+      : Math.round((1 - (Math.abs(additions) / Math.max(oldText.length, newText.length))) * 100);
+
+    console.log('[TextComparator] Stats:', {
+      oldChars: oldText.length,
+      newChars: newText.length,
+      additions,
+      similarity
+    });
+
     return {
       oldChars: oldText.length,
       newChars: newText.length,
@@ -74,7 +108,8 @@ export function TextComparator({
       additionsPercent,
       oldWords: oldWords.length,
       newWords: newWords.length,
-      wordDiff
+      wordDiff,
+      similarity
     };
   }, [oldText, newText]);
 
@@ -198,7 +233,7 @@ Variação: ${stats?.additionsPercent}%
             <div className='text-xs font-medium text-blue-800 mb-2'>
               📊 RESUMO DA COMPARAÇÃO
             </div>
-            <div className='grid grid-cols-4 gap-4 text-xs'>
+            <div className='grid grid-cols-5 gap-4 text-xs'>
               <div>
                 <div className='text-gray-600'>Caracteres</div>
                 <div className='font-semibold text-gray-900'>
@@ -224,6 +259,19 @@ Variação: ${stats?.additionsPercent}%
                 <div className='font-semibold text-gray-900'>
                   <span className={`${stats.additionsPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {stats.additionsPercent >= 0 ? '+' : ''}{stats.additionsPercent}%
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <div className='text-gray-600'>Similaridade</div>
+                <div className='font-semibold text-gray-900'>
+                  <span className={`${
+                    stats.similarity >= 80 ? 'text-green-600' :
+                    stats.similarity >= 50 ? 'text-yellow-600' :
+                    'text-red-600'
+                  }`}>
+                    {stats.similarity}%
                   </span>
                 </div>
               </div>
