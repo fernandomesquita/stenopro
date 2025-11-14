@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, Sparkles, Edit3, Copy, Download, Save, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { trpc } from '../../lib/trpc';
 import { RichTextEditor } from './RichTextEditor';
+import { useQueryClient } from '@tanstack/react-query';
 
 type TabType = 'raw' | 'corrected' | 'final';
 
@@ -19,6 +20,7 @@ export function TabbedTextViewer({
   correctedText,
   finalText
 }: TabbedTextViewerProps) {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>('corrected');
   const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState(finalText || correctedText || '');
@@ -32,21 +34,95 @@ export function TabbedTextViewer({
     savedFinalLength: savedFinalText.length
   });
 
+  // Sincronizar estado local quando props mudarem (ex: reload da página)
+  useEffect(() => {
+    console.log('[TabbedViewer] 🔄 Props mudaram, sincronizando estado local...');
+    console.log('[TabbedViewer] finalText do props:', finalText?.substring(0, 100));
+    console.log('[TabbedViewer] finalText length:', finalText?.length || 0);
+
+    if (finalText) {
+      console.log('[TabbedViewer] ✅ Atualizando savedFinalText com finalText');
+      setSavedFinalText(finalText);
+    } else if (correctedText) {
+      console.log('[TabbedViewer] ⚠️ Usando correctedText como fallback');
+      setSavedFinalText(correctedText);
+    }
+  }, [finalText, correctedText]);
+
   // @ts-ignore - Tipo temporário do tRPC
   const updateMutation = trpc.transcriptions.update.useMutation({
-    onSuccess: () => {
-      console.log('[TabbedViewer] ✅ Salvo com sucesso');
+    onMutate: async (newData: any) => {
+      console.group('[Mutation] onMutate - Iniciando atualização otimista');
+      console.log('Novo finalText length:', newData.finalText?.length || 0);
+      console.log('Novo finalText preview:', newData.finalText?.substring(0, 200));
 
-      // Atualizar estado local permanente
+      // Cancelar queries em andamento para este ID
+      await queryClient.cancelQueries({
+        queryKey: [['transcriptions', 'getById'], { input: { id: transcriptionId } }]
+      });
+
+      // Snapshot do estado anterior do cache
+      const previousData = queryClient.getQueryData([
+        ['transcriptions', 'getById'],
+        { input: { id: transcriptionId } }
+      ]);
+
+      console.log('[Mutation] Previous cache data:', previousData);
+
+      // Atualizar cache otimisticamente
+      queryClient.setQueryData(
+        [['transcriptions', 'getById'], { input: { id: transcriptionId } }],
+        (old: any) => {
+          console.log('[Mutation] Atualizando cache otimisticamente');
+          console.log('[Mutation] Old finalText:', old?.finalText?.substring(0, 100));
+          return {
+            ...old,
+            finalText: newData.finalText,
+            updatedAt: new Date()
+          };
+        }
+      );
+
+      console.groupEnd();
+
+      // Retornar contexto para rollback se necessário
+      return { previousData };
+    },
+
+    onSuccess: (data: any) => {
+      console.group('[Mutation] ✅ Sucesso!');
+      console.log('Data retornada:', data);
+      console.log('finalText salvo length:', data?.finalText?.length || 0);
+
+      // Atualizar estado local
       setSavedFinalText(editedText);
 
-      // NÃO invalidar cache global para evitar perder mudanças
+      // Invalidar para refetch e garantir sincronização com servidor
+      queryClient.invalidateQueries({
+        queryKey: [['transcriptions', 'getById'], { input: { id: transcriptionId } }]
+      });
+
       toast.success('Texto salvo com sucesso!');
       setIsEditing(false);
+      console.groupEnd();
     },
-    onError: (error: any) => {
-      console.error('[TabbedViewer] ❌ Erro ao salvar:', error);
+
+    onError: (error: any, _variables: any, context: any) => {
+      console.group('[Mutation] ❌ Erro ao salvar');
+      console.error('Error:', error);
+      console.error('Error message:', error.message);
+
+      // Reverter cache para estado anterior
+      if (context?.previousData) {
+        console.log('[Mutation] Revertendo cache para estado anterior');
+        queryClient.setQueryData(
+          [['transcriptions', 'getById'], { input: { id: transcriptionId } }],
+          context.previousData
+        );
+      }
+
       toast.error('Erro ao salvar: ' + error.message);
+      console.groupEnd();
     }
   });
 

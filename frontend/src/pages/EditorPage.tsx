@@ -17,6 +17,21 @@ export function EditorPage() {
 
   console.log('[EditorPage] Carregando transcrição:', id);
 
+  // Log detalhado quando query retorna dados
+  if (transcription) {
+    console.group('[EditorPage] 📦 Query data recebida');
+    console.log('ID:', transcription.id);
+    console.log('Status:', transcription.status);
+    console.log('rawText length:', transcription.rawText?.length || 0);
+    console.log('rawText preview:', transcription.rawText?.substring(0, 100));
+    console.log('correctedText length:', transcription.correctedText?.length || 0);
+    console.log('correctedText preview:', transcription.correctedText?.substring(0, 100));
+    console.log('finalText length:', transcription.finalText?.length || 0);
+    console.log('finalText preview:', transcription.finalText?.substring(0, 100));
+    console.log('updatedAt:', transcription.updatedAt);
+    console.groupEnd();
+  }
+
   if (isLoading) {
     return (
       <div className='flex items-center justify-center h-screen'>

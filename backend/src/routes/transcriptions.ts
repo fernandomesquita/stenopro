@@ -148,6 +148,7 @@ export const transcriptionsRouter = router({
     .query(async ({ input }) => {
       try {
         const { id } = input;
+        console.log('[getById] 🔍 Buscando transcrição:', id);
 
         const [transcription] = await db
           .select()
@@ -156,11 +157,24 @@ export const transcriptionsRouter = router({
           .limit(1);
 
         if (!transcription) {
+          console.error('[getById] ❌ Transcrição não encontrada:', id);
           throw new TRPCError({
             code: 'NOT_FOUND',
             message: `Transcrição ${id} não encontrada`,
           });
         }
+
+        console.group('[getById] ✅ Transcrição encontrada');
+        console.log('ID:', transcription.id);
+        console.log('Status:', transcription.status);
+        console.log('rawText length:', transcription.rawText?.length || 0);
+        console.log('rawText preview:', transcription.rawText?.substring(0, 100));
+        console.log('correctedText length:', transcription.correctedText?.length || 0);
+        console.log('correctedText preview:', transcription.correctedText?.substring(0, 100));
+        console.log('finalText length:', transcription.finalText?.length || 0);
+        console.log('finalText preview:', transcription.finalText?.substring(0, 100));
+        console.log('updatedAt:', transcription.updatedAt);
+        console.groupEnd();
 
         // Retornar com transcriptionText como alias para finalText
         return {
