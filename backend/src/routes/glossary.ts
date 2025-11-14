@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { router, publicProcedure } from '../lib/trpc.js';
 import { db } from '../db/client.js';
 import { glossaries } from '../db/schema.js';
-import { eq, and, or, like, desc } from 'drizzle-orm';
+import { eq, and, or, like } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 
 /**

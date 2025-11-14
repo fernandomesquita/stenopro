@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { router, publicProcedure } from '../lib/trpc.js';
 import { db } from '../db/client.js';
-import { transcriptions, type NewTranscription } from '../db/schema.js';
-import { eq, and, or, like, desc, asc, count, sql } from 'drizzle-orm';
+import { transcriptions } from '../db/schema.js';
+import { eq, and, or, like, desc, asc, count } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { storageService } from '../services/storage.service.js';
 import { processingService } from '../services/processing.service.js';
@@ -51,6 +51,7 @@ const updateInputSchema = z.object({
   room: z.string().max(100).optional(),
   transcriptionText: z.string().optional(),
   finalText: z.string().optional(),
+  customPrompt: z.string().nullable().optional(),
 });
 
 /**
@@ -358,7 +359,7 @@ export const transcriptionsRouter = router({
     .input(updateInputSchema)
     .mutation(async ({ input }) => {
       try {
-        const { id, title, room, transcriptionText, finalText } = input;
+        const { id, title, room, transcriptionText, finalText, customPrompt } = input;
 
         console.log('[Update] 📝 Recebendo atualização:', {
           id: id,
@@ -367,6 +368,7 @@ export const transcriptionsRouter = router({
           hasTranscriptionText: !!transcriptionText,
           hasFinalText: !!finalText,
           finalTextLength: finalText?.length,
+          hasCustomPrompt: customPrompt !== undefined,
         });
 
         // Verificar se transcrição existe
@@ -392,6 +394,7 @@ export const transcriptionsRouter = router({
         if (room !== undefined) updateData.room = room;
         if (transcriptionText !== undefined) updateData.finalText = transcriptionText;
         if (finalText !== undefined) updateData.finalText = finalText;
+        if (customPrompt !== undefined) updateData.customPrompt = customPrompt;
 
         console.log('[Update] 💾 Campos a atualizar:', Object.keys(updateData));
 

@@ -182,7 +182,7 @@ export class ProcessingService {
 
     console.log(`[Processing] 📊 Atualizando progresso: ${progress.percent}% - "${progress.message}"`);
 
-    const result = await db
+    await db
       .update(transcriptions)
       .set({
         status,

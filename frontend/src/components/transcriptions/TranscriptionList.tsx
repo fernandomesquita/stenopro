@@ -26,7 +26,7 @@ export function TranscriptionList({ onEdit }: TranscriptionListProps) {
     page,
     limit,
     search: search || undefined,
-    status: statusFilter || undefined,
+    status: (statusFilter || undefined) as any,
     room: roomFilter || undefined,
     sortBy: 'createdAt',
     sortOrder: 'desc',

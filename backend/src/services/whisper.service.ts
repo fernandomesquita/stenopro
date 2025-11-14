@@ -53,12 +53,12 @@ export class WhisperService {
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
 
       console.log('[Groq] ✅ Transcrição concluída em', elapsed, 'segundos');
-      console.log('[Groq] 📝 Duração do áudio:', transcription.duration, 'segundos');
+      console.log('[Groq] 📝 Duração do áudio:', (transcription as any).duration, 'segundos');
       console.log('[Groq] 📝 Caracteres transcritos:', transcription.text.length);
 
       return {
         text: transcription.text,
-        duration: transcription.duration || 0,
+        duration: (transcription as any).duration || 0,
       };
     } catch (error: any) {
       console.error('[Groq] ❌ Erro completo:', {

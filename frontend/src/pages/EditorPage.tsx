@@ -33,7 +33,7 @@ export function EditorPage() {
   );
 
   // Polling para atualizações automáticas durante processamento
-  usePollTranscription(transcriptionId, refetch, transcription?.status);
+  usePollTranscription(transcriptionId, refetch, transcription?.status || undefined);
 
   // @ts-ignore - Tipo temporário do tRPC
   const updateMutation = trpc.transcriptions.update.useMutation({
@@ -226,7 +226,7 @@ export function EditorPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Data de Criação</label>
-              <p className="text-gray-900">{formatDate(transcription.createdAt)}</p>
+              <p className="text-gray-900">{transcription.createdAt ? formatDate(transcription.createdAt) : 'N/A'}</p>
             </div>
 
             {transcription.processingStartedAt && (

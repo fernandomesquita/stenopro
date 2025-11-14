@@ -1,4 +1,4 @@
-import { router, publicProcedure } from '../trpc.js';
+import { router, publicProcedure } from '../lib/trpc.js';
 import { z } from 'zod';
 import { db } from '../db/client.js';
 import { promptTemplates } from '../db/schema.js';

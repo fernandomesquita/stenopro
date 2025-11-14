@@ -22,7 +22,7 @@ export function PromptEditor({
   const { data: defaultTemplate } = trpc.promptTemplates.getDefault.useQuery();
 
   // Query para listar todos os templates
-  const { data: templates, refetch: refetchTemplates } = trpc.promptTemplates.list.useQuery();
+  const { data: templates } = trpc.promptTemplates.list.useQuery();
 
   // Mutation para atualizar transcrição com custom prompt
   const updateTranscriptionMutation = trpc.transcriptions.update.useMutation({
@@ -66,14 +66,13 @@ export function PromptEditor({
 
   // Handler: Usar template padrão
   const handleUseDefault = () => {
-    if (!defaultTemplate || defaultTemplate.length === 0) {
+    if (!defaultTemplate) {
       toast.error('Nenhum template padrão encontrado');
       return;
     }
 
-    const template = defaultTemplate[0];
-    setPromptText(template.promptText);
-    toast.success(`Template "${template.name}" carregado`);
+    setPromptText(defaultTemplate.promptText);
+    toast.success(`Template "${defaultTemplate.name}" carregado`);
   };
 
   // Handler: Limpar prompt personalizado (volta ao padrão)

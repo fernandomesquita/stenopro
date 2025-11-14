@@ -189,7 +189,7 @@ export function AuxiliaryDocuments({ transcriptionId }: AuxiliaryDocumentsProps)
                   size="sm"
                   variant="secondary"
                   onClick={() => handleDelete(doc.id, doc.filename)}
-                  disabled={deleteMutation.isLoading}
+                  disabled={deleteMutation.isPending}
                   title="Remover documento"
                 >
                   <Trash2 className="w-4 h-4" />

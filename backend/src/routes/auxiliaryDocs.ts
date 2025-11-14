@@ -1,4 +1,4 @@
-import { router, publicProcedure } from '../trpc.js';
+import { router, publicProcedure } from '../lib/trpc.js';
 import { z } from 'zod';
 import { db } from '../db/client.js';
 import { auxiliaryDocuments } from '../db/schema.js';
@@ -46,7 +46,7 @@ export const auxiliaryDocsRouter = router({
         console.log('[AuxDocs] 💾 Arquivo salvo:', uniqueFilename);
 
         // Inserir no banco
-        const result = await db.insert(auxiliaryDocuments).values({
+        await db.insert(auxiliaryDocuments).values({
           transcriptionId: input.transcriptionId,
           filename: input.filename,
           filePath,
