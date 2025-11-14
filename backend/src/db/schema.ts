@@ -91,6 +91,17 @@ export const promptTemplates = mysqlTable('prompt_templates', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+// Tabela de termos do glossário
+export const glossaryTerms = mysqlTable('glossary_terms', {
+  id: int('id').primaryKey().autoincrement(),
+  type: varchar('type', { length: 20 }).notNull(), // 'deputy' ou 'term'
+  term: varchar('term', { length: 255 }).notNull(),
+  correctSpelling: varchar('correct_spelling', { length: 255 }).notNull(),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+});
+
 // Types inferidos
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -112,3 +123,6 @@ export type NewAuxiliaryDocument = typeof auxiliaryDocuments.$inferInsert;
 
 export type PromptTemplate = typeof promptTemplates.$inferSelect;
 export type NewPromptTemplate = typeof promptTemplates.$inferInsert;
+
+export type GlossaryTerm = typeof glossaryTerms.$inferSelect;
+export type NewGlossaryTerm = typeof glossaryTerms.$inferInsert;
