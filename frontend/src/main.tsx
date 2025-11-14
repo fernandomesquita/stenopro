@@ -39,7 +39,31 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     {/* @ts-ignore - Tipo temporário do tRPC */}
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <Toaster position="top-right" />
+        <Toaster
+          position='bottom-right'
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+              padding: '16px',
+              borderRadius: '8px',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+            },
+            success: {
+              iconTheme: {
+                primary: '#10b981',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
         <App />
       </QueryClientProvider>
     {/* @ts-ignore - Tipo temporário do tRPC */}

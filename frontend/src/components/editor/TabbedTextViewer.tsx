@@ -26,12 +26,11 @@ export function TabbedTextViewer({
   const [editedText, setEditedText] = useState(finalText || correctedText || '');
   const [savedFinalText, setSavedFinalText] = useState(finalText || correctedText || '');
 
-  console.log('[TabbedViewer] Inicializado', {
+  console.log('[TabbedViewer] Render:', {
     activeTab,
-    rawLength: rawText?.length || 0,
-    correctedLength: correctedText?.length || 0,
-    finalLength: finalText?.length || 0,
-    savedFinalLength: savedFinalText.length
+    isEditing,
+    editedTextLength: editedText.length,
+    savedFinalTextLength: savedFinalText.length
   });
 
   // Sincronizar estado local quando props mudarem (ex: reload da página)
@@ -290,17 +289,23 @@ export function TabbedTextViewer({
 
       {/* Content Area */}
       <div className='flex-1 overflow-hidden'>
-        {isEditing ? (
-          // Editor Mode com Quill
+        {activeTab === 'final' ? (
+          // Aba Final: Um único componente Quill que troca apenas readOnly
           <RichTextEditor
-            value={editedText}
-            onChange={setEditedText}
-            placeholder='Digite o texto final...'
+            key='final-editor'
+            value={isEditing ? editedText : savedFinalText}
+            onChange={(value) => {
+              console.log('[TabbedViewer] Text changed:', value.length);
+              setEditedText(value);
+            }}
+            readOnly={!isEditing}
+            placeholder={isEditing ? 'Digite o texto final...' : ''}
           />
         ) : (
-          // View Mode com Quill (readonly)
+          // Abas Raw/Corrected: Readonly sempre, com key diferente para forçar remontagem
           <RichTextEditor
-            value={currentText || 'Nenhum conteúdo disponível nesta versão'}
+            key={`${activeTab}-viewer`}
+            value={currentTab.content}
             onChange={() => {}}
             readOnly={true}
           />

@@ -16,9 +16,18 @@ export function RichTextEditor({
   readOnly = false
 }: RichTextEditorProps) {
 
+  console.log('[RichTextEditor] Render:', {
+    readOnly,
+    hasValue: !!value,
+    valueLength: value?.length || 0
+  });
+
   // Converter plain text para HTML se necessário
   const convertedValue = useMemo(() => {
-    if (!value) return '';
+    if (!value) {
+      console.log('[RichTextEditor] Valor vazio');
+      return '';
+    }
 
     console.log('[RichTextEditor] Value recebido:', {
       length: value.length,
@@ -33,7 +42,7 @@ export function RichTextEditor({
     }
 
     // Se é plain text, converter para HTML preservando quebras de linha
-    console.log('[RichTextEditor] 🔄 Convertendo plain text para HTML');
+    console.log('[RichTextEditor] 🔄 Convertendo para HTML');
     const htmlValue = value
       .split('\n\n')
       .map(para => para.trim())
@@ -46,13 +55,17 @@ export function RichTextEditor({
   }, [value]);
 
   // Toolbar minimalista: apenas itálico, marca-texto e indentação
-  const modules = useMemo(() => ({
-    toolbar: readOnly ? false : [
+  const modules = useMemo(() => {
+    const toolbar = readOnly ? false : [
       ['italic'],  // Itálico
       [{ 'background': ['#ffff00', '#ff6b6b', '#4ecdc4', '#95e1d3', '#f38181', '#feca57'] }],  // Marca-texto (6 cores)
       [{ 'indent': '-1'}, { 'indent': '+1' }]  // Indentação
-    ]
-  }), [readOnly]);
+    ];
+
+    console.log('[RichTextEditor] Toolbar config:', { readOnly, toolbar });
+
+    return { toolbar };
+  }, [readOnly]);
 
   // Formatos permitidos
   const formats = [
@@ -79,7 +92,7 @@ export function RichTextEditor({
   }
 
   return (
-    <div className='quill-wrapper h-full'>
+    <div className={`quill-wrapper h-full ${readOnly ? 'read-only' : ''}`}>
       <ReactQuill
         value={convertedValue}
         onChange={handleChange}
@@ -126,9 +139,15 @@ export function RichTextEditor({
           font-style: italic;
         }
 
+        /* IMPORTANTE: Mostrar toolbar quando NÃO é readonly */
+        .quill-wrapper:not(.read-only) .ql-toolbar {
+          display: block !important;
+          border-bottom: 1px solid #e5e7eb !important;
+        }
+
         /* Esconder toolbar quando readonly */
         .quill-wrapper.read-only .ql-toolbar {
-          display: none;
+          display: none !important;
         }
 
         /* Estilo da toolbar */
@@ -149,26 +168,15 @@ export function RichTextEditor({
           margin-right: 15px;
         }
 
-        /* Labels customizados */
-        .ql-toolbar button.ql-italic:after {
-          content: 'Itálico';
-          position: absolute;
-          top: -25px;
-          left: 50%;
-          transform: translateX(-50%);
-          background: #333;
-          color: white;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 11px;
-          white-space: nowrap;
-          opacity: 0;
-          pointer-events: none;
-          transition: opacity 0.2s;
+        /* Botões da toolbar */
+        .ql-toolbar button {
+          width: 32px !important;
+          height: 32px !important;
         }
 
-        .ql-toolbar button.ql-italic:hover:after {
-          opacity: 1;
+        .ql-toolbar button:hover {
+          background: #e5e7eb;
+          border-radius: 4px;
         }
 
         /* Indentação visível */
