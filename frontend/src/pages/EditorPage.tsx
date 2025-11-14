@@ -303,10 +303,7 @@ export function EditorPage() {
             return (
               <TranscriptionEditor
                 transcriptionId={transcriptionId}
-                initialContent={textToUse}
-                onSave={(content) => {
-                  console.log('[EditorPage] Texto salvo callback:', content.substring(0, 100) + '...');
-                }}
+                initialText={textToUse}
               />
             );
           })()

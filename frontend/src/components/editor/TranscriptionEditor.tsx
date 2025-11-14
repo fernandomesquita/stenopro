@@ -1,300 +1,144 @@
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import { Extension } from '@tiptap/core';
-import { useState, useEffect, useCallback } from 'react';
-import toast from 'react-hot-toast';
+import { useState, useEffect, useRef } from 'react';
 import { trpc } from '@/lib/trpc';
-import { Button } from '../common/Button';
-
-/**
- * Extensão customizada para converter texto selecionado em CAIXA ALTA
- * Usado para formatar nomes de parlamentares
- */
-const CaixaAltaExtension = Extension.create({
-  name: 'caixaAlta',
-
-  addKeyboardShortcuts() {
-    return {
-      'Mod-Shift-u': () => {
-        const { state, view } = this.editor;
-        const { from, to } = state.selection;
-        const selectedText = state.doc.textBetween(from, to, '');
-
-        if (selectedText) {
-          const upperText = selectedText.toUpperCase();
-          view.dispatch(state.tr.insertText(upperText, from, to));
-          return true;
-        }
-
-        return false;
-      },
-    };
-  },
-});
+import toast from 'react-hot-toast';
+import { Save } from 'lucide-react';
 
 interface TranscriptionEditorProps {
   transcriptionId: number;
-  initialContent: string;
-  onSave?: (content: string) => void;
+  initialText: string;
 }
 
-export function TranscriptionEditor({
-  transcriptionId,
-  initialContent,
-  onSave,
-}: TranscriptionEditorProps) {
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+export function TranscriptionEditor({ transcriptionId, initialText }: TranscriptionEditorProps) {
+  const [text, setText] = useState(initialText);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const [lastSaved, setLastSaved] = useState<Date>(new Date());
+  const lastContent = useRef(initialText);
 
-  // @ts-ignore - Tipo temporário do tRPC
+  // @ts-ignore
   const updateMutation = trpc.transcriptions.update.useMutation({
     onSuccess: () => {
+      setSaveStatus('saved');
       setLastSaved(new Date());
-      setIsSaving(false);
-      setHasUnsavedChanges(false);
-      toast.success('Salvo ✓', { duration: 2000 });
-      onSave?.(editor?.getHTML() || '');
+      toast.success('Salvo com sucesso!');
+      console.log('✅ Texto salvo');
     },
     onError: (error: any) => {
-      setIsSaving(false);
-      toast.error(error.message || 'Erro ao salvar');
-    },
+      setSaveStatus('unsaved');
+      toast.error('Erro ao salvar: ' + error.message);
+      console.error('❌ Erro ao salvar:', error);
+    }
   });
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        paragraph: {
-          HTMLAttributes: {
-            class: 'mb-4',
-          },
-        },
-        heading: false,
-        codeBlock: false,
-        blockquote: false,
-      }),
-      CaixaAltaExtension,
-    ],
-    content: initialContent,
-    onUpdate: () => {
-      setHasUnsavedChanges(true);
-    },
-    editorProps: {
-      attributes: {
-        class: 'whitespace-pre-line min-h-[500px] focus:outline-none px-4 py-3',
-        spellcheck: 'false',
-      },
-    },
-    parseOptions: {
-      preserveWhitespace: 'full',
-    },
-  });
+  // Log inicial
+  useEffect(() => {
+    console.log('=== CARREGANDO EDITOR ===');
+    console.log('Text length:', initialText.length);
+    console.log('Tem quebras de linha?', initialText.includes('\n'));
+    console.log('Contagem de quebras:', (initialText.match(/\n/g) || []).length);
+    console.log('Preview:', initialText.substring(0, 300));
+  }, [initialText]);
 
   // Autosave a cada 30 segundos
-  const saveContent = useCallback(() => {
-    if (!editor || !hasUnsavedChanges || isSaving) return;
-
-    const content = editor.getHTML();
-
-    console.log('=== EDITOR AUTOSAVE ===');
-    console.log('ID:', transcriptionId);
-    console.log('Content length:', content.length);
-    console.log('Content preview:', content.substring(0, 200));
-
-    setIsSaving(true);
-
-    updateMutation.mutate({
-      id: transcriptionId,
-      finalText: content,
-    });
-  }, [editor, hasUnsavedChanges, isSaving, transcriptionId, updateMutation]);
-
   useEffect(() => {
     const interval = setInterval(() => {
-      if (hasUnsavedChanges) {
-        saveContent();
+      if (text !== lastContent.current && text.length > 0) {
+        console.log('💾 Autosave disparado');
+        setSaveStatus('saving');
+        updateMutation.mutate({
+          id: transcriptionId,
+          finalText: text
+        });
+        lastContent.current = text;
       }
-    }, 30000); // 30 segundos
+    }, 30000);
 
     return () => clearInterval(interval);
-  }, [hasUnsavedChanges, saveContent]);
+  }, [text, transcriptionId, updateMutation]);
 
-  // Salvar manualmente com Ctrl+S
+  const handleManualSave = () => {
+    console.log('=== SAVE MANUAL ===');
+    console.log('ID:', transcriptionId);
+    console.log('Text length:', text.length);
+    console.log('Tem quebras?', text.includes('\n'));
+    console.log('Preview:', text.substring(0, 200));
+
+    setSaveStatus('saving');
+    updateMutation.mutate({
+      id: transcriptionId,
+      finalText: text
+    });
+    lastContent.current = text;
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setText(e.target.value);
+    setSaveStatus('unsaved');
+  };
+
+  // Ctrl+S para salvar
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        saveContent();
+        handleManualSave();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [saveContent]);
-
-  if (!editor) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-gray-500">Carregando editor...</div>
-      </div>
-    );
-  }
+  }, [text]);
 
   return (
     <div className="flex flex-col h-full">
-      {/* Toolbar */}
-      <div className="border-b border-gray-200 bg-white p-2 flex items-center gap-2 sticky top-0 z-10">
-        <Button
-          size="sm"
-          variant={editor.isActive('bold') ? 'primary' : 'secondary'}
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          title="Negrito (Ctrl+B)"
-        >
-          <strong>B</strong>
-        </Button>
-
-        <Button
-          size="sm"
-          variant={editor.isActive('italic') ? 'primary' : 'secondary'}
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          title="Itálico (Ctrl+I)"
-        >
-          <em>I</em>
-        </Button>
-
-        <div className="w-px h-6 bg-gray-300 mx-1" />
-
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().undo()}
-          title="Desfazer (Ctrl+Z)"
-        >
-          ↶
-        </Button>
-
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().redo()}
-          title="Refazer (Ctrl+Shift+Z)"
-        >
-          ↷
-        </Button>
-
-        <div className="w-px h-6 bg-gray-300 mx-1" />
-
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => {
-            const { from, to } = editor.state.selection;
-            const selectedText = editor.state.doc.textBetween(from, to, '');
-            if (selectedText) {
-              editor.commands.insertContentAt(
-                { from, to },
-                selectedText.toUpperCase()
-              );
-            } else {
-              toast.error('Selecione um texto primeiro');
-            }
-          }}
-          title="CAIXA ALTA (Ctrl+Shift+U)"
-        >
-          <span className="font-bold">AA</span>
-        </Button>
-
-        <div className="flex-1" />
-
-        {/* Save Status */}
-        <div className="flex items-center gap-2 text-sm">
-          {isSaving && (
-            <span className="text-blue-600 flex items-center gap-1">
-              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Salvando...
-            </span>
-          )}
-
-          {!isSaving && lastSaved && (
+      {/* Header com botão salvar */}
+      <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          {saveStatus === 'saved' && (
             <span className="text-green-600">
-              Salvo ✓ {lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+              ✓ Salvo às {lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
-
-          {!isSaving && hasUnsavedChanges && !lastSaved && (
-            <span className="text-gray-500">Não salvo</span>
+          {saveStatus === 'saving' && (
+            <span className="text-blue-600">💾 Salvando...</span>
           )}
-
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={() => {
-              if (!editor || !hasUnsavedChanges || isSaving) return;
-
-              const content = editor.getHTML();
-
-              console.log('=== EDITOR SAVE ===');
-              console.log('ID:', transcriptionId);
-              console.log('Content length:', content.length);
-              console.log('Content preview:', content.substring(0, 200));
-              console.log('Mutation status:', updateMutation.status);
-              console.log('Has paragraphs:', content.includes('<p>'));
-              console.log('Has breaks:', content.includes('<br>'));
-
-              setIsSaving(true);
-
-              updateMutation.mutate(
-                { id: transcriptionId, finalText: content },
-                {
-                  onSuccess: (data: any) => {
-                    console.log('✅ Save SUCCESS:', data);
-                    setLastSaved(new Date());
-                    setIsSaving(false);
-                    setHasUnsavedChanges(false);
-                    toast.success('Salvo!');
-                    onSave?.(content);
-                  },
-                  onError: (error: any) => {
-                    console.error('❌ Save ERROR:', error);
-                    setIsSaving(false);
-                    toast.error('Erro: ' + error.message);
-                  }
-                }
-              );
-            }}
-            disabled={!hasUnsavedChanges || isSaving}
-          >
-            Salvar Agora
-          </Button>
+          {saveStatus === 'unsaved' && (
+            <span className="text-orange-600">● Não salvo</span>
+          )}
+          <span className="text-gray-400 ml-4">
+            {text.length.toLocaleString()} caracteres
+          </span>
         </div>
+
+        <button
+          onClick={handleManualSave}
+          disabled={updateMutation.isPending}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+        >
+          <Save className="w-4 h-4" />
+          Salvar Agora
+        </button>
       </div>
 
-      {/* Editor Content */}
-      <div className="flex-1 overflow-y-auto bg-white">
-        <EditorContent
-          editor={editor}
-          className="prose prose-sm max-w-none"
-          style={{
-            whiteSpace: 'pre-line',
-            lineHeight: '1.8',
-          }}
-        />
-      </div>
+      {/* Textarea principal */}
+      <textarea
+        value={text}
+        onChange={handleChange}
+        className="flex-1 w-full p-6 font-sans text-base leading-relaxed resize-none focus:outline-none border-0"
+        style={{
+          whiteSpace: 'pre-wrap',
+          fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+          lineHeight: '1.8',
+        }}
+        placeholder="O texto transcrito aparecerá aqui..."
+        spellCheck={false}
+      />
 
-      {/* Footer Info */}
+      {/* Footer com dicas */}
       <div className="border-t border-gray-200 bg-gray-50 px-4 py-2 text-xs text-gray-600">
         <div className="flex items-center gap-4">
-          <span>💡 Dica: Use <kbd className="px-1 py-0.5 bg-gray-200 rounded">Ctrl+Shift+U</kbd> para CAIXA ALTA</span>
+          <span>💡 Dica: Use <kbd className="px-1 py-0.5 bg-gray-200 rounded">Ctrl+S</kbd> para salvar</span>
           <span>|</span>
-          <span><kbd className="px-1 py-0.5 bg-gray-200 rounded">Ctrl+S</kbd> para salvar</span>
-          <span>|</span>
-          <span>Autosave: 30s</span>
+          <span>Autosave a cada 30 segundos</span>
         </div>
       </div>
     </div>
