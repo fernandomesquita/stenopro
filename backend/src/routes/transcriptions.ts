@@ -361,15 +361,15 @@ export const transcriptionsRouter = router({
       try {
         const { id, title, room, transcriptionText, finalText, customPrompt } = input;
 
-        console.log('=== BACKEND UPDATE ===');
-        console.log('Received ID:', id);
-        console.log('Has finalText:', !!finalText);
-        console.log('FinalText length:', finalText?.length || 0);
-        console.log('FinalText preview:', finalText?.substring(0, 200));
-        console.log('Has title:', !!title);
-        console.log('Has room:', !!room);
-        console.log('Has transcriptionText:', !!transcriptionText);
-        console.log('Has customPrompt:', customPrompt !== undefined);
+        console.group('=== BACKEND UPDATE ===');
+        console.log('🟢 Timestamp:', new Date().toISOString());
+        console.log('🟢 Received ID:', id);
+        console.log('🟢 Has title?', !!title);
+        console.log('🟢 Has room?', !!room);
+        console.log('🟢 Has finalText?', !!finalText);
+        console.log('🟢 FinalText length:', finalText?.length || 0);
+        console.log('🟢 FinalText preview:', finalText?.substring(0, 300));
+        console.groupEnd();
 
         // Verificar se transcrição existe
         const [existing] = await db
@@ -390,14 +390,29 @@ export const transcriptionsRouter = router({
         const updateData: any = {
           updatedAt: new Date(),
         };
-        if (title !== undefined) updateData.title = title;
-        if (room !== undefined) updateData.room = room;
-        if (transcriptionText !== undefined) updateData.finalText = transcriptionText;
-        if (finalText !== undefined) updateData.finalText = finalText;
-        if (customPrompt !== undefined) updateData.customPrompt = customPrompt;
 
-        console.log('Fields to update:', Object.keys(updateData));
-        console.log('Update data preview:', JSON.stringify(updateData).substring(0, 300));
+        if (title !== undefined) {
+          updateData.title = title;
+          console.log('🟢 Updating title');
+        }
+        if (room !== undefined) {
+          updateData.room = room;
+          console.log('🟢 Updating room');
+        }
+        if (transcriptionText !== undefined) {
+          updateData.finalText = transcriptionText;
+          console.log('🟢 Updating finalText from transcriptionText');
+        }
+        if (finalText !== undefined) {
+          updateData.finalText = finalText;
+          console.log('🟢 Updating finalText, length:', finalText.length);
+        }
+        if (customPrompt !== undefined) {
+          updateData.customPrompt = customPrompt;
+          console.log('🟢 Updating customPrompt');
+        }
+
+        console.log('🟢 Update data keys:', Object.keys(updateData));
 
         // Atualizar apenas se houver dados
         if (Object.keys(updateData).length > 1) { // >1 porque sempre tem updatedAt
@@ -406,26 +421,45 @@ export const transcriptionsRouter = router({
             .set(updateData)
             .where(eq(transcriptions.id, id));
 
-          console.log('✅ UPDATE executed:', result);
+          console.group('✅ UPDATE EXECUTED');
+          console.log('Result:', result);
+          console.log('Affected rows:', (result as any)?.[0]?.affectedRows);
+          console.log('Changed rows:', (result as any)?.[0]?.changedRows);
+          console.groupEnd();
         }
 
-        // Buscar transcrição atualizada
+        // VERIFICAÇÃO: Ler do banco
+        console.log('🔍 Verificando se salvou no banco...');
+        const [verification] = await db
+          .select({
+            id: transcriptions.id,
+            finalText: transcriptions.finalText,
+            correctedText: transcriptions.correctedText,
+            updatedAt: transcriptions.updatedAt,
+          })
+          .from(transcriptions)
+          .where(eq(transcriptions.id, id))
+          .limit(1);
+
+        console.group('🔍 VERIFICATION');
+        console.log('Found record?', !!verification);
+        console.log('ID:', verification?.id);
+        console.log('finalText length:', verification?.finalText?.length || 0);
+        console.log('finalText preview:', verification?.finalText?.substring(0, 200));
+        console.log('updatedAt:', verification?.updatedAt);
+        console.groupEnd();
+
+        // Buscar transcrição atualizada completa
         const [updated] = await db
           .select()
           .from(transcriptions)
           .where(eq(transcriptions.id, id))
           .limit(1);
 
-        console.log('✅ Verification - data in DB after update:', {
-          id: updated.id,
-          hasFinalText: !!updated.finalText,
-          finalTextLength: updated.finalText?.length || 0,
-          finalTextPreview: updated.finalText?.substring(0, 200),
-          hasParagraphs: updated.finalText?.includes('<p>') || false,
-          hasBreaks: updated.finalText?.includes('<br>') || false,
-        });
-
-        return updated;
+        return {
+          ...updated,
+          savedLength: verification?.finalText?.length || 0,
+        };
       } catch (error) {
         if (error instanceof TRPCError) throw error;
 

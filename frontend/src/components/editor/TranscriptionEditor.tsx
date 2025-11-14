@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { trpc } from '@/lib/trpc';
+import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Save } from 'lucide-react';
 
@@ -13,29 +14,45 @@ export function TranscriptionEditor({ transcriptionId, initialText }: Transcript
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
   const [lastSaved, setLastSaved] = useState<Date>(new Date());
   const lastContent = useRef(initialText);
+  const queryClient = useQueryClient();
 
   // @ts-ignore
   const updateMutation = trpc.transcriptions.update.useMutation({
-    onSuccess: () => {
+    onSuccess: (data: any) => {
+      console.group('✅ SAVE SUCCESS');
+      console.log('Response:', data);
+      console.log('Saved length:', data?.savedLength);
+      console.groupEnd();
+
+      console.log('✅ Invalidando cache...');
+      queryClient.invalidateQueries({ queryKey: ['transcriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['transcriptions', 'getById'] });
+
       setSaveStatus('saved');
       setLastSaved(new Date());
       toast.success('Salvo com sucesso!');
-      console.log('✅ Texto salvo');
     },
     onError: (error: any) => {
+      console.group('❌ SAVE ERROR');
+      console.error('Error:', error);
+      console.error('Error message:', error.message);
+      console.error('Error data:', error.data);
+      console.error('Error shape:', error.shape);
+      console.groupEnd();
+
       setSaveStatus('unsaved');
       toast.error('Erro ao salvar: ' + error.message);
-      console.error('❌ Erro ao salvar:', error);
     }
   });
 
   // Log inicial
   useEffect(() => {
-    console.log('=== CARREGANDO EDITOR ===');
+    console.group('=== CARREGANDO EDITOR ===');
     console.log('Text length:', initialText.length);
     console.log('Tem quebras de linha?', initialText.includes('\n'));
     console.log('Contagem de quebras:', (initialText.match(/\n/g) || []).length);
     console.log('Preview:', initialText.substring(0, 300));
+    console.groupEnd();
   }, [initialText]);
 
   // Autosave a cada 30 segundos
@@ -56,11 +73,15 @@ export function TranscriptionEditor({ transcriptionId, initialText }: Transcript
   }, [text, transcriptionId, updateMutation]);
 
   const handleManualSave = () => {
-    console.log('=== SAVE MANUAL ===');
-    console.log('ID:', transcriptionId);
-    console.log('Text length:', text.length);
-    console.log('Tem quebras?', text.includes('\n'));
-    console.log('Preview:', text.substring(0, 200));
+    console.group('=== SAVE FRONTEND ===');
+    console.log('🔵 Timestamp:', new Date().toISOString());
+    console.log('🔵 Transcription ID:', transcriptionId);
+    console.log('🔵 Text length:', text.length);
+    console.log('🔵 Text has linebreaks?', text.includes('\n'));
+    console.log('🔵 Linebreak count:', (text.match(/\n/g) || []).length);
+    console.log('🔵 First 300 chars:', text.substring(0, 300));
+    console.log('🔵 Mutation status BEFORE:', updateMutation.status);
+    console.groupEnd();
 
     setSaveStatus('saving');
     updateMutation.mutate({
@@ -71,7 +92,9 @@ export function TranscriptionEditor({ transcriptionId, initialText }: Transcript
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setText(e.target.value);
+    const newText = e.target.value;
+    console.log('📝 Text changed, new length:', newText.length);
+    setText(newText);
     setSaveStatus('unsaved');
   };
 
