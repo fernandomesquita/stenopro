@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Play, Pause, RotateCcw, Volume2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface AudioPlayerProps {
   audioUrl: string;
@@ -13,6 +14,7 @@ export function AudioPlayer({ audioUrl, onClose }: AudioPlayerProps) {
   const [duration, setDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [volume, setVolume] = useState(1);
+  const [error, setError] = useState<string | null>(null);
 
   console.log('[AudioPlayer] 🎵 Inicializado com URL:', audioUrl);
   console.log('[AudioPlayer] 🌐 Origin:', window.location.origin);
@@ -36,20 +38,23 @@ export function AudioPlayer({ audioUrl, onClose }: AudioPlayerProps) {
 
     const handleError = (e: Event) => {
       const target = e.target as HTMLAudioElement;
-      console.error('[AudioPlayer] ❌ ERRO ao carregar áudio:', {
-        error: target.error,
-        code: target.error?.code,
-        message: target.error?.message,
-        networkState: audio.networkState,
-        readyState: audio.readyState,
-        src: audio.src
-      });
+      const err = target.error;
 
-      // Detalhe dos códigos de erro
-      if (target.error?.code === 1) console.error('[AudioPlayer] MEDIA_ERR_ABORTED: Usuário abortou');
-      if (target.error?.code === 2) console.error('[AudioPlayer] MEDIA_ERR_NETWORK: Erro de rede');
-      if (target.error?.code === 3) console.error('[AudioPlayer] MEDIA_ERR_DECODE: Erro ao decodificar');
-      if (target.error?.code === 4) console.error('[AudioPlayer] MEDIA_ERR_SRC_NOT_SUPPORTED: Formato não suportado');
+      console.group('[AudioPlayer] ❌ ERRO');
+      console.error('Error code:', err?.code);
+      console.error('Error message:', err?.message);
+      console.error('Network state:', audio.networkState);
+      console.error('Ready state:', audio.readyState);
+      console.error('URL:', audioUrl);
+      console.groupEnd();
+
+      let errorMessage = 'Erro ao carregar áudio';
+      if (err?.code === 2) errorMessage = 'Erro de rede ao carregar áudio';
+      if (err?.code === 3) errorMessage = 'Erro ao decodificar áudio';
+      if (err?.code === 4) errorMessage = 'Formato de áudio não suportado';
+
+      setError(errorMessage);
+      toast.error(errorMessage);
     };
 
     const handleLoadedMetadata = () => {
@@ -60,6 +65,7 @@ export function AudioPlayer({ audioUrl, onClose }: AudioPlayerProps) {
     const handleCanPlay = () => {
       console.log('[AudioPlayer] ✅ Pode reproduzir');
       console.log('[AudioPlayer] ReadyState:', audio.readyState);
+      setError(null);
     };
 
     const handleLoadStart = () => {
@@ -82,6 +88,9 @@ export function AudioPlayer({ audioUrl, onClose }: AudioPlayerProps) {
     audio.addEventListener('loadstart', handleLoadStart);
     audio.addEventListener('progress', handleProgress);
 
+    // Forçar carregamento
+    audio.load();
+
     return () => {
       audio.removeEventListener('timeupdate', updateTime);
       audio.removeEventListener('loadedmetadata', updateDuration);
@@ -94,18 +103,25 @@ export function AudioPlayer({ audioUrl, onClose }: AudioPlayerProps) {
     };
   }, [audioUrl]);
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (isPlaying) {
-      audio.pause();
-      console.log('[AudioPlayer] ⏸️ Pausado');
-    } else {
-      audio.play();
-      console.log('[AudioPlayer] ▶️ Reproduzindo');
+    try {
+      if (isPlaying) {
+        audio.pause();
+        console.log('[AudioPlayer] ⏸️ Pausado');
+        setIsPlaying(false);
+      } else {
+        await audio.play();
+        console.log('[AudioPlayer] ▶️ Reproduzindo');
+        setIsPlaying(true);
+      }
+    } catch (err: any) {
+      console.error('[AudioPlayer] ❌ Erro ao reproduzir:', err);
+      toast.error('Erro ao reproduzir: ' + err.message);
+      setIsPlaying(false);
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -156,7 +172,12 @@ export function AudioPlayer({ audioUrl, onClose }: AudioPlayerProps) {
 
   return (
     <div className='bg-white border-t shadow-lg p-4'>
-      <audio ref={audioRef} src={audioUrl} preload='metadata' />
+      <audio
+        ref={audioRef}
+        src={audioUrl}
+        preload='metadata'
+        crossOrigin='anonymous'
+      />
 
       <div className='max-w-4xl mx-auto'>
         {/* Header */}
@@ -174,6 +195,13 @@ export function AudioPlayer({ audioUrl, onClose }: AudioPlayerProps) {
             </button>
           )}
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className='bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded mb-4'>
+            ⚠️ {error}
+          </div>
+        )}
 
         {/* Progress Bar */}
         <div className='mb-4'>

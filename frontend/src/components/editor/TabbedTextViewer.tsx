@@ -21,18 +21,25 @@ export function TabbedTextViewer({
   const [activeTab, setActiveTab] = useState<TabType>('corrected');
   const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState(finalText || correctedText || '');
+  const [savedFinalText, setSavedFinalText] = useState(finalText || correctedText || '');
 
   console.log('[TabbedViewer] Inicializado', {
     activeTab,
     rawLength: rawText?.length || 0,
     correctedLength: correctedText?.length || 0,
-    finalLength: finalText?.length || 0
+    finalLength: finalText?.length || 0,
+    savedFinalLength: savedFinalText.length
   });
 
   // @ts-ignore - Tipo temporário do tRPC
   const updateMutation = trpc.transcriptions.update.useMutation({
     onSuccess: () => {
       console.log('[TabbedViewer] ✅ Salvo com sucesso');
+
+      // Atualizar estado local permanente
+      setSavedFinalText(editedText);
+
+      // NÃO invalidar cache global para evitar perder mudanças
       toast.success('Texto salvo com sucesso!');
       setIsEditing(false);
     },
@@ -61,7 +68,7 @@ export function TabbedTextViewer({
       id: 'final' as TabType,
       label: 'Final',
       icon: Edit3,
-      content: finalText || correctedText || '',
+      content: savedFinalText, // Usar estado local
       description: 'Versão editável final'
     }
   ];
@@ -71,15 +78,17 @@ export function TabbedTextViewer({
 
   const handleStartEdit = () => {
     console.log('[TabbedViewer] Iniciando edição');
-    setEditedText(finalText || correctedText || '');
+    console.log('[TabbedViewer] Texto inicial:', savedFinalText.substring(0, 200));
+    setEditedText(savedFinalText);
     setIsEditing(true);
   };
 
   const handleSave = () => {
-    console.log('[TabbedViewer] Salvando...', {
-      id: transcriptionId,
-      textLength: editedText.length
-    });
+    console.group('[TabbedViewer] === SALVANDO ===');
+    console.log('ID:', transcriptionId);
+    console.log('Text length:', editedText.length);
+    console.log('Preview:', editedText.substring(0, 200));
+    console.groupEnd();
 
     updateMutation.mutate({
       id: transcriptionId,
@@ -90,7 +99,7 @@ export function TabbedTextViewer({
   const handleCancel = () => {
     console.log('[TabbedViewer] Cancelando edição');
     setIsEditing(false);
-    setEditedText(finalText || correctedText || '');
+    setEditedText(savedFinalText); // Restaurar do estado local
   };
 
   const handleCopy = () => {

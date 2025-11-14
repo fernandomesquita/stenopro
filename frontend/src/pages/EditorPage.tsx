@@ -49,9 +49,26 @@ export function EditorPage() {
     hasFinal: !!transcription.finalText
   });
 
-  const audioUrl = transcription.audioUrl?.startsWith('http')
-    ? transcription.audioUrl
-    : window.location.origin + transcription.audioUrl;
+  // Construir URL correta do áudio
+  const audioUrl = (() => {
+    if (!transcription.audioUrl) {
+      console.warn('[EditorPage] ⚠️ Sem audioUrl');
+      return '';
+    }
+
+    if (transcription.audioUrl.startsWith('http')) {
+      console.log('[EditorPage] 🎵 URL completa:', transcription.audioUrl);
+      return transcription.audioUrl;
+    }
+
+    const fullUrl = window.location.origin + transcription.audioUrl;
+    console.log('[EditorPage] 🔗 URL construída:', fullUrl);
+    console.log('[EditorPage] 🌐 Origin:', window.location.origin);
+    console.log('[EditorPage] 📁 Path:', transcription.audioUrl);
+    return fullUrl;
+  })();
+
+  console.log('[EditorPage] 🎵 Audio URL final:', audioUrl);
 
   return (
     <div className='flex flex-col h-screen bg-gray-50'>
