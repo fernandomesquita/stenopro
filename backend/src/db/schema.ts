@@ -1,4 +1,4 @@
-import { mysqlTable, int, varchar, text, timestamp, mysqlEnum, boolean, longtext } from 'drizzle-orm/mysql-core';
+import { mysqlTable, int, varchar, text, timestamp, mysqlEnum, boolean, longtext, json } from 'drizzle-orm/mysql-core';
 
 // Tabela de usuários (futuro)
 export const users = mysqlTable('users', {
@@ -36,6 +36,8 @@ export const transcriptions = mysqlTable('transcriptions', {
   progressPercent: int('progress_percent').default(0),
   processingStartedAt: timestamp('processing_started_at'),
   processingCompletedAt: timestamp('processing_completed_at'),
+  customPrompt: text('custom_prompt'),
+  glossaryTerms: json('glossary_terms'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
 });
@@ -69,6 +71,26 @@ export const transcriptionVersions = mysqlTable('transcription_versions', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+// Tabela de documentos auxiliares
+export const auxiliaryDocuments = mysqlTable('auxiliary_documents', {
+  id: int('id').primaryKey().autoincrement(),
+  transcriptionId: int('transcription_id').notNull(),
+  filename: varchar('filename', { length: 255 }).notNull(),
+  filePath: varchar('file_path', { length: 500 }).notNull(),
+  fileType: varchar('file_type', { length: 50 }).notNull(),
+  uploadedAt: timestamp('uploaded_at').defaultNow(),
+});
+
+// Tabela de templates de prompt
+export const promptTemplates = mysqlTable('prompt_templates', {
+  id: int('id').primaryKey().autoincrement(),
+  userId: int('user_id').notNull().default(1),
+  name: varchar('name', { length: 255 }).notNull(),
+  promptText: text('prompt_text').notNull(),
+  isDefault: boolean('is_default').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 // Types inferidos
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -84,3 +106,9 @@ export type NewSystemPrompt = typeof systemPrompts.$inferInsert;
 
 export type TranscriptionVersion = typeof transcriptionVersions.$inferSelect;
 export type NewTranscriptionVersion = typeof transcriptionVersions.$inferInsert;
+
+export type AuxiliaryDocument = typeof auxiliaryDocuments.$inferSelect;
+export type NewAuxiliaryDocument = typeof auxiliaryDocuments.$inferInsert;
+
+export type PromptTemplate = typeof promptTemplates.$inferSelect;
+export type NewPromptTemplate = typeof promptTemplates.$inferInsert;
