@@ -4,6 +4,7 @@ import { ArrowLeft, Volume2 } from 'lucide-react';
 import { trpc } from '../lib/trpc';
 import { TabbedTextViewer } from '../components/editor/TabbedTextViewer';
 import { AudioPlayer } from '../components/audio/AudioPlayer';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 export function EditorPage() {
   const { id } = useParams();
@@ -34,11 +35,8 @@ export function EditorPage() {
 
   if (isLoading) {
     return (
-      <div className='flex items-center justify-center h-screen'>
-        <div className='text-center'>
-          <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4'></div>
-          <p className='text-gray-600'>Carregando transcrição...</p>
-        </div>
+      <div className='flex items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-purple-50'>
+        <LoadingSpinner size='lg' text='Carregando transcrição...' />
       </div>
     );
   }
@@ -88,22 +86,23 @@ export function EditorPage() {
   return (
     <div className='flex flex-col bg-gray-50' style={{ height: 'calc(100vh - 80px)' }}>
       {/* Header */}
-      <header className='bg-white border-b shadow-sm'>
+      <header className='bg-gradient-primary text-white shadow-elevated'>
         <div className='px-6 py-4'>
-          <div className='flex items-center justify-between'>
+          <div className='flex items-center justify-between animate-fade-in'>
             <div className='flex items-center gap-4'>
               <Link
                 to='/'
-                className='flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors'
+                className='flex items-center gap-2 text-white hover:text-blue-100
+                         transition-colors duration-200'
               >
                 <ArrowLeft className='w-5 h-5' />
                 Voltar
               </Link>
-              <div className='border-l pl-4'>
-                <h1 className='text-xl font-semibold text-gray-900'>
+              <div className='border-l border-white/20 pl-4'>
+                <h1 className='text-xl font-semibold'>
                   {transcription.title}
                 </h1>
-                <p className='text-sm text-gray-600'>
+                <p className='text-sm text-blue-100'>
                   {transcription.room} • {transcription.status}
                 </p>
               </div>
@@ -114,7 +113,9 @@ export function EditorPage() {
                 console.log('[EditorPage]', showAudioPlayer ? 'Fechando' : 'Abrindo', 'player');
                 setShowAudioPlayer(!showAudioPlayer);
               }}
-              className='flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
+              className='flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-lg
+                       border border-white/20 rounded-lg hover:bg-white/20
+                       transition-all duration-200 font-medium'
             >
               <Volume2 className='w-4 h-4' />
               {showAudioPlayer ? 'Fechar Áudio' : 'Ouvir Áudio'}
