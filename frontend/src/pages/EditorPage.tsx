@@ -294,21 +294,11 @@ export function EditorPage() {
             const textToUse = transcription.finalText || transcription.correctedText || transcription.rawText || '';
 
             console.log('=== CARREGANDO EDITOR ===');
-            console.log('Transcription data:', {
-              id: transcription.id,
-              hasRawText: !!transcription.rawText,
-              hasCorrectedText: !!transcription.correctedText,
-              hasFinalText: !!transcription.finalText,
-              rawLength: transcription.rawText?.length || 0,
-              correctedLength: transcription.correctedText?.length || 0,
-              finalLength: transcription.finalText?.length || 0
-            });
-            console.log('✅ Usando texto de:',
-              transcription.finalText ? 'final_text' :
-              transcription.correctedText ? 'corrected_text' :
-              'raw_text'
-            );
-            console.log('Preview:', textToUse.substring(0, 200));
+            console.log('Usando:', transcription.finalText ? 'final_text' : 'corrected_text');
+            console.log('Length:', textToUse.length);
+            console.log('Tem quebras?', textToUse.includes('\n'));
+            console.log('Contagem de quebras:', (textToUse.match(/\n/g) || []).length);
+            console.log('Preview:', textToUse.substring(0, 300));
 
             return (
               <TranscriptionEditor

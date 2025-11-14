@@ -65,14 +65,14 @@ export function TranscriptionEditor({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3],
-        },
         paragraph: {
           HTMLAttributes: {
             class: 'mb-4',
           },
         },
+        heading: false,
+        codeBlock: false,
+        blockquote: false,
       }),
       CaixaAltaExtension,
     ],
@@ -82,8 +82,12 @@ export function TranscriptionEditor({
     },
     editorProps: {
       attributes: {
-        class: 'whitespace-pre-wrap min-h-[500px] focus:outline-none px-4 py-3',
+        class: 'whitespace-pre-line min-h-[500px] focus:outline-none px-4 py-3',
+        spellcheck: 'false',
       },
+    },
+    parseOptions: {
+      preserveWhitespace: 'full',
     },
   });
 
@@ -273,9 +277,14 @@ export function TranscriptionEditor({
 
       {/* Editor Content */}
       <div className="flex-1 overflow-y-auto bg-white">
-        <div className="prose prose-sm max-w-none whitespace-pre-wrap leading-relaxed">
-          <EditorContent editor={editor} />
-        </div>
+        <EditorContent
+          editor={editor}
+          className="prose prose-sm max-w-none"
+          style={{
+            whiteSpace: 'pre-line',
+            lineHeight: '1.8',
+          }}
+        />
       </div>
 
       {/* Footer Info */}
