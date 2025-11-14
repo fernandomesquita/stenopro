@@ -24,7 +24,12 @@ export class ClaudeService {
     tokensUsed: { input: number; output: number };
   }> {
     try {
-      console.log(`[Claude] Corrigindo texto (${rawText.length} chars)`);
+      console.log('=== CLAUDE SERVICE ===');
+      console.log('Input length:', rawText.length);
+      console.log('Input preview:', rawText.substring(0, 200));
+      console.log('Transcription ID:', transcriptionId);
+      console.log('Tem auxiliaryDocs?', false); // Será implementado no futuro
+      console.log('Tem customPrompt?', false); // Será implementado no futuro
 
       // ========================================
       // TESTE DE API KEY
@@ -69,6 +74,8 @@ export class ClaudeService {
       const firstBlock = message.content[0];
       const correctedText = firstBlock.type === 'text' ? firstBlock.text : '';
 
+      console.log('✅ Claude API response length:', correctedText.length);
+      console.log('Preview:', correctedText.substring(0, 300));
       console.log(`[Claude] ✅ Concluído em ${elapsed}s`);
       console.log(`[Claude] Tokens: ${message.usage.input_tokens} input + ${message.usage.output_tokens} output`);
       console.log(`[Claude] Caracteres: ${correctedText.length}`);

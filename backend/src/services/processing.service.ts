@@ -50,11 +50,11 @@ export class ProcessingService {
 
       const { text: rawText, duration } = await whisperService.transcribe(audioPath);
 
-      console.log('[Processing] ✅ Groq Whisper respondeu com sucesso');
-      console.log('[Processing] 📊 Duração do áudio:', duration, 'segundos');
-      console.log('[Processing] 📝 Texto bruto do Whisper (primeiros 200 chars):', rawText.substring(0, 200));
-
-      console.log(`[Processing] ✅ Whisper concluído, salvando texto bruto...`);
+      console.log('=== WHISPER CONCLUÍDO ===');
+      console.log('Raw text length:', rawText.length);
+      console.log('Raw text preview:', rawText.substring(0, 200));
+      console.log('Audio duration:', duration, 'seconds');
+      console.log('[Processing] ✅ Salvando texto bruto no banco...');
       await db
         .update(transcriptions)
         .set({
@@ -70,15 +70,16 @@ export class ProcessingService {
       await this.updateStatus(transcriptionId, 'correcting');
       console.log(`[Processing] ✅ Progresso atualizado no banco, iniciando Claude...`);
 
-      console.log('[Processing] 🤖 Enviando para Claude...');
-      console.log('[Processing] 📝 Tamanho do texto a corrigir:', rawText.length, 'caracteres');
-      console.log('[Processing] 📝 Texto enviado para Claude (primeiros 200 chars):', rawText.substring(0, 200));
+      console.log('=== INICIANDO CLAUDE ===');
+      console.log('Chamando Claude service...');
+      console.log('Input text length:', rawText.length);
+      console.log('Input text preview:', rawText.substring(0, 200));
 
       let correctedText: string;
 
       try {
         // Adicionar timeout de 5 minutos para Claude
-        console.log('[Processing] ⏳ Iniciando correção com Claude (pode demorar alguns minutos)...');
+        console.log('[Processing] ⏳ Chamando Claude API (pode demorar alguns minutos)...');
         const claudeResult = await Promise.race([
           claudeService.correctText(rawText, transcriptionId),
           new Promise<never>((_, reject) =>
@@ -88,9 +89,12 @@ export class ProcessingService {
 
         correctedText = claudeResult.text;
 
-        console.log('[Processing] ✅ Claude API respondeu com sucesso');
-        console.log('[Processing] 📝 Texto corrigido (primeiros 200 chars):', correctedText.substring(0, 200));
-        console.log('[Processing] 📊 Tamanho do texto corrigido:', correctedText.length, 'caracteres');
+        console.log('=== CLAUDE CONCLUÍDO ===');
+        console.log('Corrected text length:', correctedText.length);
+        console.log('Corrected text preview:', correctedText.substring(0, 200));
+        console.log('Tem parágrafos?', correctedText.includes('\n\n'));
+        console.log('Tem formatação parlamentar?', correctedText.includes('O SR.') || correctedText.includes('A SRA.'));
+        console.log('Tem quebras de linha?', correctedText.includes('\n'));
       } catch (claudeError: any) {
         console.error('[Processing] ❌ Erro ao chamar Claude API:', claudeError.message);
         console.error('[Processing] 📋 Stack trace:', claudeError.stack);
@@ -108,9 +112,12 @@ export class ProcessingService {
       // ETAPA 3: FINALIZAR (100%)
       // ========================================
       console.log(`[Processing] 🎉 Atualizando progresso para 100% (Concluído)`);
-      console.log('[Processing] 📝 Salvando texto corrigido nos campos correctedText E finalText...');
+      console.log('=== SALVANDO NO BANCO ===');
+      console.log('Salvando em corrected_text e final_text');
+      console.log('Text length:', correctedText.length);
+      console.log('Text preview:', correctedText.substring(0, 200));
 
-      await db
+      const saveResult = await db
         .update(transcriptions)
         .set({
           correctedText,
@@ -122,6 +129,7 @@ export class ProcessingService {
         } as any)
         .where(eq(transcriptions.id, transcriptionId));
 
+      console.log('✅ Salvo no banco:', saveResult);
       console.log('[Processing] ✅ Texto salvo, length:', correctedText.length);
       console.log(`[Processing] ✅ Transcrição ${transcriptionId} processada com sucesso (100%)`);
     } catch (error: any) {

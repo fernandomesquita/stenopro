@@ -91,13 +91,12 @@ export function TranscriptionEditor({
   const saveContent = useCallback(() => {
     if (!editor || !hasUnsavedChanges || isSaving) return;
 
-    const content = editor.getHTML(); // HTML preserva formatação!
+    const content = editor.getHTML();
 
-    console.log('[Editor] 💾 Salvando:', {
-      id: transcriptionId,
-      content: content.substring(0, 200),
-      length: content.length,
-    });
+    console.log('=== EDITOR AUTOSAVE ===');
+    console.log('ID:', transcriptionId);
+    console.log('Content length:', content.length);
+    console.log('Content preview:', content.substring(0, 200));
 
     setIsSaving(true);
 
@@ -234,25 +233,34 @@ export function TranscriptionEditor({
             onClick={() => {
               if (!editor || !hasUnsavedChanges || isSaving) return;
 
-              const content = editor.getHTML(); // HTML preserva formatação!
+              const content = editor.getHTML();
 
-              console.log('[Editor] 💾 Salvando (manual):', {
-                id: transcriptionId,
-                content: content.substring(0, 200),
-                length: content.length,
-              });
+              console.log('=== EDITOR SAVE ===');
+              console.log('ID:', transcriptionId);
+              console.log('Content length:', content.length);
+              console.log('Content preview:', content.substring(0, 200));
+              console.log('Mutation status:', updateMutation.status);
+              console.log('Has paragraphs:', content.includes('<p>'));
+              console.log('Has breaks:', content.includes('<br>'));
 
               setIsSaving(true);
 
-              toast.promise(
-                updateMutation.mutateAsync({
-                  id: transcriptionId,
-                  finalText: content,
-                }),
+              updateMutation.mutate(
+                { id: transcriptionId, finalText: content },
                 {
-                  loading: 'Salvando...',
-                  success: 'Salvo com sucesso!',
-                  error: 'Erro ao salvar'
+                  onSuccess: (data: any) => {
+                    console.log('✅ Save SUCCESS:', data);
+                    setLastSaved(new Date());
+                    setIsSaving(false);
+                    setHasUnsavedChanges(false);
+                    toast.success('Salvo!');
+                    onSave?.(content);
+                  },
+                  onError: (error: any) => {
+                    console.error('❌ Save ERROR:', error);
+                    setIsSaving(false);
+                    toast.error('Erro: ' + error.message);
+                  }
                 }
               );
             }}

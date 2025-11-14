@@ -291,21 +291,31 @@ export function EditorPage() {
       <div className="flex-1 flex flex-col">
         {transcription.status === 'ready' && (transcription.finalText || transcription.correctedText || transcription.rawText) ? (
           (() => {
-            const initialText = transcription.finalText || transcription.correctedText || transcription.rawText;
-            console.log('[EditorPage] Carregando texto:', {
-              hasFinal: !!transcription.finalText,
-              hasCorrected: !!transcription.correctedText,
-              hasRaw: !!transcription.rawText,
-              length: initialText?.length,
-              source: transcription.finalText ? 'finalText' : (transcription.correctedText ? 'correctedText' : 'rawText')
+            const textToUse = transcription.finalText || transcription.correctedText || transcription.rawText || '';
+
+            console.log('=== CARREGANDO EDITOR ===');
+            console.log('Transcription data:', {
+              id: transcription.id,
+              hasRawText: !!transcription.rawText,
+              hasCorrectedText: !!transcription.correctedText,
+              hasFinalText: !!transcription.finalText,
+              rawLength: transcription.rawText?.length || 0,
+              correctedLength: transcription.correctedText?.length || 0,
+              finalLength: transcription.finalText?.length || 0
             });
+            console.log('✅ Usando texto de:',
+              transcription.finalText ? 'final_text' :
+              transcription.correctedText ? 'corrected_text' :
+              'raw_text'
+            );
+            console.log('Preview:', textToUse.substring(0, 200));
 
             return (
               <TranscriptionEditor
                 transcriptionId={transcriptionId}
-                initialContent={initialText || ''}
+                initialContent={textToUse}
                 onSave={(content) => {
-                  console.log('[EditorPage] Texto salvo:', content.substring(0, 100) + '...');
+                  console.log('[EditorPage] Texto salvo callback:', content.substring(0, 100) + '...');
                 }}
               />
             );

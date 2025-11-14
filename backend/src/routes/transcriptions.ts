@@ -361,15 +361,15 @@ export const transcriptionsRouter = router({
       try {
         const { id, title, room, transcriptionText, finalText, customPrompt } = input;
 
-        console.log('[Update] 📝 Recebendo atualização:', {
-          id: id,
-          hasTitle: !!title,
-          hasRoom: !!room,
-          hasTranscriptionText: !!transcriptionText,
-          hasFinalText: !!finalText,
-          finalTextLength: finalText?.length,
-          hasCustomPrompt: customPrompt !== undefined,
-        });
+        console.log('=== BACKEND UPDATE ===');
+        console.log('Received ID:', id);
+        console.log('Has finalText:', !!finalText);
+        console.log('FinalText length:', finalText?.length || 0);
+        console.log('FinalText preview:', finalText?.substring(0, 200));
+        console.log('Has title:', !!title);
+        console.log('Has room:', !!room);
+        console.log('Has transcriptionText:', !!transcriptionText);
+        console.log('Has customPrompt:', customPrompt !== undefined);
 
         // Verificar se transcrição existe
         const [existing] = await db
@@ -396,16 +396,17 @@ export const transcriptionsRouter = router({
         if (finalText !== undefined) updateData.finalText = finalText;
         if (customPrompt !== undefined) updateData.customPrompt = customPrompt;
 
-        console.log('[Update] 💾 Campos a atualizar:', Object.keys(updateData));
+        console.log('Fields to update:', Object.keys(updateData));
+        console.log('Update data preview:', JSON.stringify(updateData).substring(0, 300));
 
         // Atualizar apenas se houver dados
         if (Object.keys(updateData).length > 1) { // >1 porque sempre tem updatedAt
-          await db
+          const result = await db
             .update(transcriptions)
             .set(updateData)
             .where(eq(transcriptions.id, id));
 
-          console.log('[Update] ✅ Update executado');
+          console.log('✅ UPDATE executed:', result);
         }
 
         // Buscar transcrição atualizada
@@ -415,10 +416,13 @@ export const transcriptionsRouter = router({
           .where(eq(transcriptions.id, id))
           .limit(1);
 
-        console.log('[Update] 🔍 Verificação após update:', {
+        console.log('✅ Verification - data in DB after update:', {
+          id: updated.id,
           hasFinalText: !!updated.finalText,
-          finalTextLength: updated.finalText?.length,
-          finalTextPreview: updated.finalText?.substring(0, 100),
+          finalTextLength: updated.finalText?.length || 0,
+          finalTextPreview: updated.finalText?.substring(0, 200),
+          hasParagraphs: updated.finalText?.includes('<p>') || false,
+          hasBreaks: updated.finalText?.includes('<br>') || false,
         });
 
         return updated;
