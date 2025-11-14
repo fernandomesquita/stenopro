@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { TranscriptionCard } from './TranscriptionCard';
@@ -7,6 +7,7 @@ import { Button } from '../common/Button';
 import { Spinner } from '../common/Spinner';
 import { Alert } from '../common/Alert';
 import { trpc } from '../../lib/trpc';
+import { usePollTranscription } from '../../hooks/usePollTranscription';
 
 interface TranscriptionListProps {
   onEdit?: (id: number) => void;
@@ -70,6 +71,27 @@ export function TranscriptionList({ onEdit }: TranscriptionListProps) {
       // Erro já tratado no onError da mutation
     }
   };
+
+  // Polling automático para transcrições em processamento
+  useEffect(() => {
+    const processingStatuses = ['uploading', 'transcribing', 'correcting'];
+    const hasProcessing = data?.items?.some((item: any) =>
+      processingStatuses.includes(item.status)
+    );
+
+    if (hasProcessing) {
+      console.log('[TranscriptionList] 🔄 Detectada transcrição em processamento, iniciando polling...');
+      const interval = setInterval(() => {
+        console.log('[TranscriptionList] 🔄 Atualizando lista...');
+        refetch();
+      }, 3000); // 3 segundos
+
+      return () => {
+        console.log('[TranscriptionList] ⏹️ Parando polling');
+        clearInterval(interval);
+      };
+    }
+  }, [data, refetch]);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);

@@ -52,7 +52,7 @@ export class ProcessingService {
 
       console.log('[Processing] ✅ Groq Whisper respondeu com sucesso');
       console.log('[Processing] 📊 Duração do áudio:', duration, 'segundos');
-      console.log('[Processing] 📝 Texto transcrito:', rawText.substring(0, 100) + '...');
+      console.log('[Processing] 📝 Texto bruto do Whisper (primeiros 200 chars):', rawText.substring(0, 200));
 
       console.log(`[Processing] ✅ Whisper concluído, salvando texto bruto...`);
       await db
@@ -70,13 +70,15 @@ export class ProcessingService {
       await this.updateStatus(transcriptionId, 'correcting');
       console.log(`[Processing] ✅ Progresso atualizado no banco, iniciando Claude...`);
 
-      console.log('[Processing] 🤖 Chamando Claude API...');
+      console.log('[Processing] 🤖 Enviando para Claude...');
       console.log('[Processing] 📝 Tamanho do texto a corrigir:', rawText.length, 'caracteres');
+      console.log('[Processing] 📝 Texto enviado para Claude (primeiros 200 chars):', rawText.substring(0, 200));
 
       let correctedText: string;
 
       try {
         // Adicionar timeout de 5 minutos para Claude
+        console.log('[Processing] ⏳ Iniciando correção com Claude (pode demorar alguns minutos)...');
         const claudeResult = await Promise.race([
           claudeService.correctText(rawText, transcriptionId),
           new Promise<never>((_, reject) =>
@@ -87,7 +89,8 @@ export class ProcessingService {
         correctedText = claudeResult.text;
 
         console.log('[Processing] ✅ Claude API respondeu com sucesso');
-        console.log('[Processing] 📝 Texto corrigido:', correctedText.substring(0, 100) + '...');
+        console.log('[Processing] 📝 Texto corrigido (primeiros 200 chars):', correctedText.substring(0, 200));
+        console.log('[Processing] 📊 Tamanho do texto corrigido:', correctedText.length, 'caracteres');
       } catch (claudeError: any) {
         console.error('[Processing] ❌ Erro ao chamar Claude API:', claudeError.message);
         console.error('[Processing] 📋 Stack trace:', claudeError.stack);
