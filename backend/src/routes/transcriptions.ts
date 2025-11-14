@@ -360,6 +360,15 @@ export const transcriptionsRouter = router({
       try {
         const { id, title, room, transcriptionText, finalText } = input;
 
+        console.log('[Update] 📝 Recebendo atualização:', {
+          id: id,
+          hasTitle: !!title,
+          hasRoom: !!room,
+          hasTranscriptionText: !!transcriptionText,
+          hasFinalText: !!finalText,
+          finalTextLength: finalText?.length,
+        });
+
         // Verificar se transcrição existe
         const [existing] = await db
           .select()
@@ -368,6 +377,7 @@ export const transcriptionsRouter = router({
           .limit(1);
 
         if (!existing) {
+          console.error('[Update] ❌ Transcrição não encontrada:', id);
           throw new TRPCError({
             code: 'NOT_FOUND',
             message: `Transcrição ${id} não encontrada`,
@@ -375,18 +385,24 @@ export const transcriptionsRouter = router({
         }
 
         // Construir objeto de atualização apenas com campos fornecidos
-        const updateData: any = {};
+        const updateData: any = {
+          updatedAt: new Date(),
+        };
         if (title !== undefined) updateData.title = title;
         if (room !== undefined) updateData.room = room;
         if (transcriptionText !== undefined) updateData.finalText = transcriptionText;
         if (finalText !== undefined) updateData.finalText = finalText;
 
+        console.log('[Update] 💾 Campos a atualizar:', Object.keys(updateData));
+
         // Atualizar apenas se houver dados
-        if (Object.keys(updateData).length > 0) {
+        if (Object.keys(updateData).length > 1) { // >1 porque sempre tem updatedAt
           await db
             .update(transcriptions)
             .set(updateData)
             .where(eq(transcriptions.id, id));
+
+          console.log('[Update] ✅ Update executado');
         }
 
         // Buscar transcrição atualizada
@@ -395,6 +411,12 @@ export const transcriptionsRouter = router({
           .from(transcriptions)
           .where(eq(transcriptions.id, id))
           .limit(1);
+
+        console.log('[Update] 🔍 Verificação após update:', {
+          hasFinalText: !!updated.finalText,
+          finalTextLength: updated.finalText?.length,
+          finalTextPreview: updated.finalText?.substring(0, 100),
+        });
 
         return updated;
       } catch (error) {

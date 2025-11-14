@@ -289,15 +289,27 @@ export function EditorPage() {
 
       {/* Editor Area - 70% */}
       <div className="flex-1 flex flex-col">
-        {transcription.status === 'ready' && transcription.transcriptionText ? (
-          <TranscriptionEditor
-            transcriptionId={transcriptionId}
-            initialContent={transcription.transcriptionText}
-            onSave={(content) => {
-              // Callback opcional para quando salvar
-              console.log('Texto salvo:', content.substring(0, 100) + '...');
-            }}
-          />
+        {transcription.status === 'ready' && (transcription.finalText || transcription.correctedText || transcription.rawText) ? (
+          (() => {
+            const initialText = transcription.finalText || transcription.correctedText || transcription.rawText;
+            console.log('[EditorPage] Carregando texto:', {
+              hasFinal: !!transcription.finalText,
+              hasCorrected: !!transcription.correctedText,
+              hasRaw: !!transcription.rawText,
+              length: initialText?.length,
+              source: transcription.finalText ? 'finalText' : (transcription.correctedText ? 'correctedText' : 'rawText')
+            });
+
+            return (
+              <TranscriptionEditor
+                transcriptionId={transcriptionId}
+                initialContent={initialText || ''}
+                onSave={(content) => {
+                  console.log('[EditorPage] Texto salvo:', content.substring(0, 100) + '...');
+                }}
+              />
+            );
+          })()
         ) : (
           <div className="flex-1 flex items-center justify-center bg-white">
             <div className="text-center max-w-md">

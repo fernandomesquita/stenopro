@@ -108,11 +108,13 @@ export class ProcessingService {
       // ETAPA 3: FINALIZAR (100%)
       // ========================================
       console.log(`[Processing] 🎉 Atualizando progresso para 100% (Concluído)`);
+      console.log('[Processing] 📝 Salvando texto corrigido nos campos correctedText E finalText...');
+
       await db
         .update(transcriptions)
         .set({
           correctedText,
-          finalText: correctedText, // Inicialmente, final = corrigido
+          finalText: correctedText, // Salvar nos 2 campos!
           status: 'ready',
           progressMessage: 'Concluído!',
           progressPercent: 100,
@@ -120,6 +122,7 @@ export class ProcessingService {
         } as any)
         .where(eq(transcriptions.id, transcriptionId));
 
+      console.log('[Processing] ✅ Texto salvo, length:', correctedText.length);
       console.log(`[Processing] ✅ Transcrição ${transcriptionId} processada com sucesso (100%)`);
     } catch (error: any) {
       console.error(`[Processing] ❌ ERRO CRÍTICO no processamento:`, error?.message || error);

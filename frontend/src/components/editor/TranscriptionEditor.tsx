@@ -68,6 +68,12 @@ export function TranscriptionEditor({
         heading: {
           levels: [1, 2, 3],
         },
+        paragraph: {
+          HTMLAttributes: {
+            class: 'mb-4',
+          },
+        },
+        hardBreak: true,
       }),
       CaixaAltaExtension,
     ],
@@ -77,7 +83,7 @@ export function TranscriptionEditor({
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none min-h-[500px] max-w-none p-4 whitespace-pre-wrap leading-relaxed',
+        class: 'whitespace-pre-wrap min-h-[500px] focus:outline-none px-4 py-3',
       },
     },
   });
@@ -86,7 +92,14 @@ export function TranscriptionEditor({
   const saveContent = useCallback(() => {
     if (!editor || !hasUnsavedChanges || isSaving) return;
 
-    const content = editor.getHTML();
+    const content = editor.getHTML(); // HTML preserva formatação!
+
+    console.log('[Editor] 💾 Salvando:', {
+      id: transcriptionId,
+      content: content.substring(0, 200),
+      length: content.length,
+    });
+
     setIsSaving(true);
 
     updateMutation.mutate({
@@ -222,7 +235,14 @@ export function TranscriptionEditor({
             onClick={() => {
               if (!editor || !hasUnsavedChanges || isSaving) return;
 
-              const content = editor.getHTML();
+              const content = editor.getHTML(); // HTML preserva formatação!
+
+              console.log('[Editor] 💾 Salvando (manual):', {
+                id: transcriptionId,
+                content: content.substring(0, 200),
+                length: content.length,
+              });
+
               setIsSaving(true);
 
               toast.promise(
@@ -246,7 +266,9 @@ export function TranscriptionEditor({
 
       {/* Editor Content */}
       <div className="flex-1 overflow-y-auto bg-white">
-        <EditorContent editor={editor} />
+        <div className="prose prose-sm max-w-none whitespace-pre-wrap leading-relaxed">
+          <EditorContent editor={editor} />
+        </div>
       </div>
 
       {/* Footer Info */}
