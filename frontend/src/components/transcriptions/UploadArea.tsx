@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Upload, File, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -16,7 +16,24 @@ export function UploadArea({ onUploadSuccess }: UploadAreaProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [room, setRoom] = useState('');
+  const [selectedPromptId, setSelectedPromptId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // @ts-ignore
+  // Buscar prompts disponíveis
+  const { data: prompts = [] } = trpc.promptTemplates.list.useQuery();
+
+  // @ts-ignore
+  // Buscar prompt padrão
+  const { data: defaultPrompt } = trpc.promptTemplates.getDefault.useQuery();
+
+  // Definir padrão quando carregar
+  useEffect(() => {
+    if (defaultPrompt && !selectedPromptId) {
+      setSelectedPromptId(defaultPrompt.id);
+      console.log('[Upload] Prompt padrão selecionado:', defaultPrompt.name);
+    }
+  }, [defaultPrompt, selectedPromptId]);
 
   // @ts-ignore - Tipo temporário do tRPC
   const createMutation = trpc.transcriptions.create.useMutation({
@@ -137,6 +154,22 @@ export function UploadArea({ onUploadSuccess }: UploadAreaProps) {
       return;
     }
 
+    console.group('[Upload] === INICIANDO UPLOAD ===');
+    console.log('[Upload] Arquivo:', selectedFile.name);
+    console.log('[Upload] Título:', title);
+    console.log('[Upload] Prompt selecionado ID:', selectedPromptId);
+
+    // Buscar texto do prompt selecionado
+    const selectedPrompt = prompts.find((p: any) => p.id === selectedPromptId);
+    if (selectedPrompt) {
+      console.log('[Upload] Prompt nome:', selectedPrompt.name);
+      console.log('[Upload] Prompt texto length:', selectedPrompt.promptText?.length);
+      console.log('[Upload] Prompt preview:', selectedPrompt.promptText?.substring(0, 200));
+    } else {
+      console.log('[Upload] ⚠️ Nenhum prompt selecionado');
+    }
+    console.groupEnd();
+
     try {
       // Converter arquivo para base64
       const reader = new FileReader();
@@ -154,6 +187,7 @@ export function UploadArea({ onUploadSuccess }: UploadAreaProps) {
             filename: selectedFile.name,
             mimetype: selectedFile.type,
           },
+          customPromptId: selectedPromptId || undefined,
         });
       };
 
@@ -252,6 +286,36 @@ export function UploadArea({ onUploadSuccess }: UploadAreaProps) {
           value={room}
           onChange={(e) => setRoom(e.target.value)}
         />
+
+        {/* NOVO: Dropdown de prompts */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Padrão de Revisão
+          </label>
+          <select
+            value={selectedPromptId || ''}
+            onChange={(e) => {
+              const id = parseInt(e.target.value);
+              setSelectedPromptId(id);
+              const prompt = prompts.find((p: any) => p.id === id);
+              console.log('[Upload] Prompt alterado para:', prompt?.name);
+            }}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
+          >
+            {prompts.length === 0 ? (
+              <option value="">Nenhum prompt disponível</option>
+            ) : (
+              prompts.map((prompt: any) => (
+                <option key={prompt.id} value={prompt.id}>
+                  {prompt.name} {prompt.isDefault ? '(Padrão)' : ''}
+                </option>
+              ))
+            )}
+          </select>
+          <p className="mt-1 text-xs text-gray-500">
+            Escolha o padrão de correção que o Claude usará na transcrição
+          </p>
+        </div>
 
         {/* Botão de submit */}
         <Button

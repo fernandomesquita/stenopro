@@ -70,6 +70,20 @@ export class ProcessingService {
       await this.updateStatus(transcriptionId, 'correcting');
       console.log(`[Processing] ✅ Progresso atualizado no banco, iniciando Claude...`);
 
+      // Buscar custom_prompt do banco
+      const [transcriptionData] = await db.select({
+        customPrompt: transcriptions.customPrompt
+      })
+      .from(transcriptions)
+      .where(eq(transcriptions.id, transcriptionId))
+      .limit(1);
+
+      console.log('[Processing] 📋 Custom prompt presente?', !!transcriptionData?.customPrompt);
+      if (transcriptionData?.customPrompt) {
+        console.log('[Processing] 📋 Custom prompt length:', transcriptionData.customPrompt.length);
+        console.log('[Processing] 📋 Custom prompt preview:', transcriptionData.customPrompt.substring(0, 300));
+      }
+
       console.log('=== INICIANDO CLAUDE ===');
       console.log('Chamando Claude service...');
       console.log('Input text length:', rawText.length);
@@ -81,7 +95,7 @@ export class ProcessingService {
         // Adicionar timeout de 5 minutos para Claude
         console.log('[Processing] ⏳ Chamando Claude API (pode demorar alguns minutos)...');
         const claudeResult = await Promise.race([
-          claudeService.correctText(rawText, transcriptionId),
+          claudeService.correctText(rawText, transcriptionId, transcriptionData?.customPrompt || undefined),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('Timeout: Claude API demorou mais de 5 minutos')), 300000)
           )

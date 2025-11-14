@@ -14,22 +14,31 @@ export class ClaudeService {
   
   /**
    * Corrige e formata um texto bruto seguindo as normas parlamentares
-   * 
+   *
    * @param rawText - Texto bruto da transcrição
    * @param transcriptionId - ID da transcrição (para buscar glossário específico)
+   * @param customPrompt - Prompt personalizado (opcional)
    * @returns Texto corrigido e formatado
    */
-  async correctText(rawText: string, transcriptionId?: number): Promise<{
+  async correctText(rawText: string, transcriptionId?: number, customPrompt?: string): Promise<{
     text: string;
     tokensUsed: { input: number; output: number };
   }> {
     try {
-      console.log('=== CLAUDE SERVICE ===');
-      console.log('Input length:', rawText.length);
-      console.log('Input preview:', rawText.substring(0, 200));
-      console.log('Transcription ID:', transcriptionId);
-      console.log('Tem auxiliaryDocs?', false); // Será implementado no futuro
-      console.log('Tem customPrompt?', false); // Será implementado no futuro
+      console.group('[Claude] 🤖 === INICIANDO CORREÇÃO ===');
+      console.log('[Claude] Raw text length:', rawText.length);
+      console.log('[Claude] Transcription ID:', transcriptionId);
+      console.log('[Claude] Tem custom prompt?', !!customPrompt);
+
+      if (customPrompt) {
+        console.log('[Claude] 📋 CUSTOM PROMPT DETECTADO');
+        console.log('[Claude] Custom prompt length:', customPrompt.length);
+        console.log('[Claude] Custom prompt completo:');
+        console.log(customPrompt);
+      } else {
+        console.log('[Claude] 📋 Usando prompt padrão do sistema');
+      }
+      console.groupEnd();
 
       // ========================================
       // TESTE DE API KEY
@@ -40,10 +49,16 @@ export class ClaudeService {
 
       const startTime = Date.now();
 
-      // Buscar prompt ativo
-      console.log('[Claude] 📋 Buscando prompt ativo...');
-      const activePrompt = await this.getActivePrompt();
-      console.log('[Claude] ✅ Prompt obtido:', activePrompt.substring(0, 50) + '...');
+      // Buscar ou usar prompt customizado
+      let systemPrompt: string;
+      if (customPrompt) {
+        console.log('[Claude] ✅ Usando custom prompt fornecido');
+        systemPrompt = customPrompt;
+      } else {
+        console.log('[Claude] 📋 Buscando prompt ativo do sistema...');
+        systemPrompt = await this.getActivePrompt();
+        console.log('[Claude] ✅ Prompt do sistema obtido:', systemPrompt.substring(0, 50) + '...');
+      }
 
       // Buscar glossário (global + específico da transcrição)
       console.log('[Claude] 📚 Buscando glossário...');
@@ -51,8 +66,9 @@ export class ClaudeService {
       console.log('[Claude] ✅ Glossário obtido:', glossary ? `${glossary.split('\n').length} entradas` : 'vazio');
 
       // Construir prompt completo
-      const prompt = this.buildPrompt(activePrompt, rawText, glossary);
+      const prompt = this.buildPrompt(systemPrompt, rawText, glossary);
       console.log('[Claude] 📝 Prompt construído:', prompt.length, 'caracteres');
+      console.log('[Claude] 📝 Prompt preview:', prompt.substring(0, 500));
 
       // Chamar Claude API
       console.log('[Claude] 📤 Enviando requisição para API...');

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { router, publicProcedure } from '../lib/trpc.js';
 import { db } from '../db/client.js';
-import { transcriptions } from '../db/schema.js';
+import { transcriptions, promptTemplates } from '../db/schema.js';
 import { eq, and, or, like, desc, asc, count } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { storageService } from '../services/storage.service.js';
@@ -42,6 +42,7 @@ const createInputSchema = z.object({
     filename: z.string(),
     mimetype: z.string(),
   }),
+  customPromptId: z.number().int().positive().optional(),
 });
 
 // Schema para atualizar transcrição
@@ -187,7 +188,7 @@ export const transcriptionsRouter = router({
     .mutation(async ({ input }) => {
       try {
         console.log('[tRPC CREATE] 🚀 Iniciando criação de transcrição');
-        const { title, room, audioFile } = input;
+        const { title, room, audioFile, customPromptId } = input;
 
         console.log('[tRPC CREATE] 📋 Dados recebidos:', {
           title,
@@ -195,7 +196,28 @@ export const transcriptionsRouter = router({
           filename: audioFile.filename,
           mimetype: audioFile.mimetype,
           bufferSize: audioFile.buffer?.length || 0,
+          customPromptId: customPromptId || 'Nenhum',
         });
+
+        console.log('[tRPC CREATE] 🎯 Prompt ID recebido:', customPromptId);
+
+        // Buscar texto do prompt se foi especificado
+        let customPromptText: string | undefined;
+        if (customPromptId) {
+          const [prompt] = await db.select()
+            .from(promptTemplates)
+            .where(eq(promptTemplates.id, customPromptId))
+            .limit(1);
+
+          if (prompt) {
+            customPromptText = prompt.promptText;
+            console.log('[tRPC CREATE] ✅ Prompt carregado:', prompt.name);
+            console.log('[tRPC CREATE] Prompt texto length:', customPromptText.length);
+            console.log('[tRPC CREATE] Prompt preview:', customPromptText.substring(0, 200));
+          } else {
+            console.log('[tRPC CREATE] ⚠️ Prompt ID não encontrado:', customPromptId);
+          }
+        }
 
         // Validar que audioFile.buffer existe
         if (!audioFile.buffer || audioFile.buffer.length === 0) {
@@ -275,6 +297,7 @@ export const transcriptionsRouter = router({
               progressMessage: 'Enviando áudio...',
               progressPercent: 0,
               processingStartedAt: new Date(),
+              customPrompt: customPromptText || null,
             } as any);
 
           console.log('[tRPC CREATE] ✅ Registro inserido no banco');
