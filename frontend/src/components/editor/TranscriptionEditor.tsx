@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { trpc } from '@/lib/trpc';
-import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Save } from 'lucide-react';
 
@@ -10,115 +9,69 @@ interface TranscriptionEditorProps {
 }
 
 export function TranscriptionEditor({ transcriptionId, initialText }: TranscriptionEditorProps) {
+  // State local NUNCA deve ser sobrescrito por props
   const [text, setText] = useState(initialText);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
   const [lastSaved, setLastSaved] = useState<Date>(new Date());
   const lastContent = useRef(initialText);
-  const queryClient = useQueryClient();
+  const isInitialized = useRef(false);
+
+  // Inicializar apenas UMA VEZ
+  useEffect(() => {
+    if (!isInitialized.current && initialText) {
+      setText(initialText);
+      lastContent.current = initialText;
+      isInitialized.current = true;
+      console.log('[Editor] Inicializado com texto:', initialText.length, 'chars');
+    }
+  }, []);
 
   // @ts-ignore
+  // Mutation SEM invalidateQueries
   const updateMutation = trpc.transcriptions.update.useMutation({
-    onMutate: async (variables: any) => {
-      console.group('🔄 OPTIMISTIC UPDATE');
-      console.log('Variables:', variables);
-      console.log('Canceling queries for transcription:', transcriptionId);
-      console.groupEnd();
-
-      // Cancel ongoing queries to prevent overwriting optimistic update
-      await queryClient.cancelQueries({ queryKey: ['transcriptions', 'getById'] });
-      await queryClient.cancelQueries({ queryKey: ['transcriptions'] });
-
-      // Snapshot previous value for rollback
-      const previousData = queryClient.getQueryData(['transcriptions', 'getById', { id: transcriptionId }]);
-
-      // Optimistically update cache
-      queryClient.setQueryData(['transcriptions', 'getById', { id: transcriptionId }], (old: any) => {
-        if (!old) return old;
-
-        console.group('📝 UPDATING CACHE OPTIMISTICALLY');
-        console.log('Old final_text length:', old.finalText?.length || 0);
-        console.log('New final_text length:', variables.finalText?.length || 0);
-        console.groupEnd();
-
-        return {
-          ...old,
-          finalText: variables.finalText !== undefined ? variables.finalText : old.finalText,
-          updatedAt: new Date(),
-        };
-      });
-
-      return { previousData };
-    },
-
     onSuccess: (data: any) => {
-      console.group('✅ SAVE SUCCESS');
-      console.log('Response:', data);
-      console.log('Saved length:', data?.savedLength);
-      console.groupEnd();
+      console.log('[Editor] ✅ Save success:', data);
 
-      // Update local content reference
+      // Atualizar referência
       lastContent.current = text;
 
+      // Atualizar UI
       setSaveStatus('saved');
       setLastSaved(new Date());
       toast.success('Salvo com sucesso!');
+
+      // NÃO invalidar cache global
+      // NÃO refetch
+      // Deixar o texto como está!
     },
-
-    onError: (error: any, _variables: any, context: any) => {
-      console.group('❌ SAVE ERROR');
-      console.error('Error:', error);
-      console.error('Error message:', error.message);
-      console.error('Error data:', error.data);
-      console.error('Error shape:', error.shape);
-      console.groupEnd();
-
-      // Revert optimistic update on error
-      if (context?.previousData) {
-        console.log('⏪ Reverting to previous data');
-        queryClient.setQueryData(['transcriptions', 'getById', { id: transcriptionId }], context.previousData);
-      }
-
+    onError: (error: any) => {
+      console.error('[Editor] ❌ Save error:', error);
       setSaveStatus('unsaved');
       toast.error('Erro ao salvar: ' + error.message);
     }
   });
 
-  // Log inicial
-  useEffect(() => {
-    console.group('=== CARREGANDO EDITOR ===');
-    console.log('Text length:', initialText.length);
-    console.log('Tem quebras de linha?', initialText.includes('\n'));
-    console.log('Contagem de quebras:', (initialText.match(/\n/g) || []).length);
-    console.log('Preview:', initialText.substring(0, 300));
-    console.groupEnd();
-  }, [initialText]);
-
   // Autosave a cada 30 segundos
   useEffect(() => {
     const interval = setInterval(() => {
       if (text !== lastContent.current && text.length > 0) {
-        console.log('💾 Autosave disparado');
+        console.log('[Editor] 💾 Autosave disparado');
         setSaveStatus('saving');
         updateMutation.mutate({
           id: transcriptionId,
           finalText: text
         });
-        lastContent.current = text;
       }
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [text, transcriptionId, updateMutation]);
+  }, [text, transcriptionId]);
 
   const handleManualSave = () => {
-    console.group('=== SAVE FRONTEND ===');
-    console.log('🔵 Timestamp:', new Date().toISOString());
-    console.log('🔵 Transcription ID:', transcriptionId);
-    console.log('🔵 Text length:', text.length);
-    console.log('🔵 Text has linebreaks?', text.includes('\n'));
-    console.log('🔵 Linebreak count:', (text.match(/\n/g) || []).length);
-    console.log('🔵 First 300 chars:', text.substring(0, 300));
-    console.log('🔵 Mutation status BEFORE:', updateMutation.status);
+    console.group('[Editor] === SAVE MANUAL ===');
+    console.log('ID:', transcriptionId);
+    console.log('Text length:', text.length);
+    console.log('Preview:', text.substring(0, 200));
     console.groupEnd();
 
     setSaveStatus('saving');
@@ -126,12 +79,10 @@ export function TranscriptionEditor({ transcriptionId, initialText }: Transcript
       id: transcriptionId,
       finalText: text
     });
-    lastContent.current = text;
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
-    console.log('📝 Text changed, new length:', newText.length);
     setText(newText);
     setSaveStatus('unsaved');
   };
@@ -151,7 +102,7 @@ export function TranscriptionEditor({ transcriptionId, initialText }: Transcript
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header com botão salvar */}
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
         <div className="flex items-center gap-2 text-sm text-gray-600">
           {saveStatus === 'saved' && (
@@ -173,22 +124,22 @@ export function TranscriptionEditor({ transcriptionId, initialText }: Transcript
         <button
           onClick={handleManualSave}
           disabled={updateMutation.isPending}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
         >
           <Save className="w-4 h-4" />
           Salvar Agora
         </button>
       </div>
 
-      {/* Textarea principal */}
+      {/* Textarea */}
       <textarea
         value={text}
         onChange={handleChange}
-        className="flex-1 w-full p-6 font-sans text-base leading-relaxed resize-none focus:outline-none border-0"
+        className="flex-1 w-full p-6 font-sans text-base leading-relaxed resize-none focus:outline-none"
         style={{
           whiteSpace: 'pre-wrap',
-          fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
-          lineHeight: '1.8',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          lineHeight: '1.8'
         }}
         placeholder="O texto transcrito aparecerá aqui..."
         spellCheck={false}
