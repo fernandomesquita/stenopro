@@ -1,390 +1,113 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { Volume2 } from 'lucide-react';
-import { trpc } from '@/lib/trpc';
-import { TranscriptionEditor } from '@/components/editor/TranscriptionEditor';
-import { AudioPlayer } from '@/components/audio/AudioPlayer';
-import { Button } from '@/components/common/Button';
-import { Input } from '@/components/common/Input';
-import { Spinner } from '@/components/common/Spinner';
-import { usePollTranscription } from '@/hooks/usePollTranscription';
-
-const STATUS_CONFIG = {
-  uploading: { label: 'Enviando', color: 'bg-blue-100 text-blue-800' },
-  transcribing: { label: 'Transcrevendo', color: 'bg-yellow-100 text-yellow-800' },
-  correcting: { label: 'Corrigindo', color: 'bg-purple-100 text-purple-800' },
-  ready: { label: 'Pronta', color: 'bg-green-100 text-green-800' },
-  error: { label: 'Erro', color: 'bg-red-100 text-red-800' },
-  archived: { label: 'Arquivada', color: 'bg-gray-100 text-gray-800' },
-};
+import { useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { ArrowLeft, Volume2 } from 'lucide-react';
+import { trpc } from '../lib/trpc';
+import { TabbedTextViewer } from '../components/editor/TabbedTextViewer';
+import { AudioPlayer } from '../components/audio/AudioPlayer';
 
 export function EditorPage() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const transcriptionId = Number(id);
-
-  const [title, setTitle] = useState('');
-  const [room, setRoom] = useState('');
-  const [isEditingMetadata, setIsEditingMetadata] = useState(false);
+  const { id } = useParams();
   const [showAudioPlayer, setShowAudioPlayer] = useState(false);
 
-  // Fixed key to prevent editor remounting on cache updates
-  const [editorKey] = useState(() => `editor-${transcriptionId}-${Date.now()}`);
-
   // @ts-ignore - Tipo temporário do tRPC
-  const { data: transcription, isLoading, error, refetch } = trpc.transcriptions.getById.useQuery(
-    { id: transcriptionId },
-    { enabled: !isNaN(transcriptionId) }
+  const { data: transcription, isLoading } = trpc.transcriptions.getById.useQuery(
+    { id: parseInt(id!) },
+    { enabled: !!id }
   );
 
-  // Polling para atualizações automáticas durante processamento
-  usePollTranscription(transcriptionId, refetch, transcription?.status || undefined);
-
-  // @ts-ignore - Tipo temporário do tRPC
-  const updateMutation = trpc.transcriptions.update.useMutation({
-    onSuccess: () => {
-      toast.success('Metadados atualizados');
-      setIsEditingMetadata(false);
-      refetch();
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Erro ao atualizar metadados');
-    },
-  });
-
-  // Inicializar campos quando transcrição carregar
-  useEffect(() => {
-    if (transcription) {
-      setTitle(transcription.title);
-      setRoom(transcription.room || '');
-    }
-  }, [transcription]);
-
-  const handleSaveMetadata = () => {
-    if (!title.trim()) {
-      toast.error('Título é obrigatório');
-      return;
-    }
-
-    updateMutation.mutate({
-      id: transcriptionId,
-      title: title.trim(),
-      room: room.trim() || undefined,
-    });
-  };
-
-  const handleCopyText = () => {
-    if (!transcription?.transcriptionText) {
-      toast.error('Nenhum texto para copiar');
-      return;
-    }
-
-    // Remove HTML tags para copiar apenas texto
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = transcription.transcriptionText;
-    const plainText = tempDiv.textContent || tempDiv.innerText || '';
-
-    navigator.clipboard.writeText(plainText)
-      .then(() => {
-        toast.success('Texto copiado para área de transferência');
-      })
-      .catch(() => {
-        toast.error('Erro ao copiar texto');
-      });
-  };
-
-  const handleExport = () => {
-    if (!transcription?.transcriptionText) {
-      toast.error('Nenhum texto para exportar');
-      return;
-    }
-
-    // Remove HTML tags
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = transcription.transcriptionText;
-    const plainText = tempDiv.textContent || tempDiv.innerText || '';
-
-    // Criar arquivo .txt
-    const blob = new Blob([plainText], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${transcription.title.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
-    link.click();
-    URL.revokeObjectURL(url);
-
-    toast.success('Arquivo exportado');
-  };
-
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return 'N/A';
-
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-
-    if (hours > 0) {
-      return `${hours}h ${minutes}m ${secs}s`;
-    } else if (minutes > 0) {
-      return `${minutes}m ${secs}s`;
-    } else {
-      return `${secs}s`;
-    }
-  };
-
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  console.log('[EditorPage] Carregando transcrição:', id);
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
-  if (error || !transcription) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen gap-4">
-        <div className="text-red-600 text-lg">
-          {error ? 'Erro ao carregar transcrição' : 'Transcrição não encontrada'}
+      <div className='flex items-center justify-center h-screen'>
+        <div className='text-center'>
+          <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4'></div>
+          <p className='text-gray-600'>Carregando transcrição...</p>
         </div>
-        <Button onClick={() => navigate('/')}>Voltar para início</Button>
       </div>
     );
   }
 
-  const statusConfig = STATUS_CONFIG[transcription.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.ready;
+  if (!transcription) {
+    return (
+      <div className='flex items-center justify-center h-screen'>
+        <div className='text-center'>
+          <p className='text-gray-600 mb-4'>Transcrição não encontrada</p>
+          <Link to='/' className='text-blue-600 hover:underline'>
+            Voltar para início
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  console.log('[EditorPage] Transcrição carregada:', {
+    id: transcription.id,
+    status: transcription.status,
+    hasRaw: !!transcription.rawText,
+    hasCorrected: !!transcription.correctedText,
+    hasFinal: !!transcription.finalText
+  });
+
+  const audioUrl = transcription.audioUrl?.startsWith('http')
+    ? transcription.audioUrl
+    : window.location.origin + transcription.audioUrl;
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar - 30% */}
-      <div className="w-[30%] bg-white border-r border-gray-200 overflow-y-auto">
-        <div className="p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Detalhes</h1>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => navigate('/')}
-            >
-              ← Voltar
-            </Button>
-          </div>
-
-          {/* Status Badge */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusConfig.color}`}>
-              {statusConfig.label}
-            </span>
-          </div>
-
-          {/* Metadata Form */}
-          <div className="space-y-4 mb-6">
-            <Input
-              label="Título"
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value);
-                setIsEditingMetadata(true);
-              }}
-              placeholder="Nome da transcrição"
-            />
-
-            <Input
-              label="Sala/Local"
-              value={room}
-              onChange={(e) => {
-                setRoom(e.target.value);
-                setIsEditingMetadata(true);
-              }}
-              placeholder="Ex: Plenário, Comissão..."
-            />
-
-            {isEditingMetadata && (
-              <Button
-                variant="primary"
-                onClick={handleSaveMetadata}
-                disabled={updateMutation.isPending}
-                className="w-full"
+    <div className='flex flex-col h-screen bg-gray-50'>
+      {/* Header */}
+      <header className='bg-white border-b shadow-sm'>
+        <div className='px-6 py-4'>
+          <div className='flex items-center justify-between'>
+            <div className='flex items-center gap-4'>
+              <Link
+                to='/'
+                className='flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors'
               >
-                {updateMutation.isPending ? 'Salvando...' : 'Salvar Metadados'}
-              </Button>
-            )}
-          </div>
-
-          {/* Info Section */}
-          <div className="space-y-3 border-t border-gray-200 pt-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Duração do Áudio</label>
-              <p className="text-gray-900">{formatDuration(transcription.audioDuration)}</p>
+                <ArrowLeft className='w-5 h-5' />
+                Voltar
+              </Link>
+              <div className='border-l pl-4'>
+                <h1 className='text-xl font-semibold text-gray-900'>
+                  {transcription.title}
+                </h1>
+                <p className='text-sm text-gray-600'>
+                  {transcription.room} • {transcription.status}
+                </p>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data de Criação</label>
-              <p className="text-gray-900">{transcription.createdAt ? formatDate(transcription.createdAt) : 'N/A'}</p>
-            </div>
-
-            {transcription.processingStartedAt && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Processamento Iniciado</label>
-                <p className="text-gray-900">{formatDate(transcription.processingStartedAt)}</p>
-              </div>
-            )}
-
-            {transcription.processingCompletedAt && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Processamento Concluído</label>
-                <p className="text-gray-900">{formatDate(transcription.processingCompletedAt)}</p>
-              </div>
-            )}
-
-            {transcription.errorMessage && (
-              <div>
-                <label className="block text-sm font-medium text-red-700 mb-1">Mensagem de Erro</label>
-                <p className="text-red-600 text-sm">{transcription.errorMessage}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="space-y-2 border-t border-gray-200 pt-6 mt-6">
-            <Button
-              variant="secondary"
-              onClick={handleCopyText}
-              className="w-full"
-              disabled={!transcription.transcriptionText || transcription.status !== 'ready'}
+            <button
+              onClick={() => {
+                console.log('[EditorPage]', showAudioPlayer ? 'Fechando' : 'Abrindo', 'player');
+                setShowAudioPlayer(!showAudioPlayer);
+              }}
+              className='flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
             >
-              📋 Copiar Texto
-            </Button>
-
-            <Button
-              variant="secondary"
-              onClick={handleExport}
-              className="w-full"
-              disabled={!transcription.transcriptionText || transcription.status !== 'ready'}
-            >
-              💾 Exportar .txt
-            </Button>
-
-            {transcription.audioUrl && (
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  console.log('[EditorPage] Toggle player de áudio, URL:', transcription.audioUrl);
-                  setShowAudioPlayer(!showAudioPlayer);
-                }}
-                className="w-full flex items-center justify-center gap-2"
-              >
-                <Volume2 className="w-4 h-4" />
-                {showAudioPlayer ? 'Fechar Áudio' : 'Ouvir Áudio'}
-              </Button>
-            )}
+              <Volume2 className='w-4 h-4' />
+              {showAudioPlayer ? 'Fechar Áudio' : 'Ouvir Áudio'}
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* Editor Area - 70% */}
-      <div className="flex-1 flex flex-col">
-        {/* Player de áudio (fixo no topo quando aberto) */}
-        {showAudioPlayer && transcription.audioUrl && (() => {
-          // Construir URL completa se for caminho relativo
-          const audioUrl = transcription.audioUrl.startsWith('http')
-            ? transcription.audioUrl
-            : `${window.location.origin}${transcription.audioUrl}`;
-
-          console.log('[EditorPage] 🎵 Audio URL original:', transcription.audioUrl);
-          console.log('[EditorPage] 🔗 Audio URL construída:', audioUrl);
-          console.log('[EditorPage] 🌐 Origin:', window.location.origin);
-
-          return (
-            <AudioPlayer
-              audioUrl={audioUrl}
-              onClose={() => setShowAudioPlayer(false)}
-            />
-          );
-        })()}
-
-        {transcription.status === 'ready' && (transcription.finalText || transcription.correctedText || transcription.rawText) ? (
-          (() => {
-            const textToUse = transcription.finalText || transcription.correctedText || transcription.rawText || '';
-
-            console.group('=== CARREGANDO TRANSCRIÇÃO ===');
-            console.log('ID:', transcription.id);
-            console.log('Status:', transcription.status);
-            console.log('Has raw_text?', !!transcription.rawText, 'length:', transcription.rawText?.length || 0);
-            console.log('Has corrected_text?', !!transcription.correctedText, 'length:', transcription.correctedText?.length || 0);
-            console.log('Has final_text?', !!transcription.finalText, 'length:', transcription.finalText?.length || 0);
-            console.log('✅ Usando:',
-              transcription.finalText ? 'final_text' :
-              transcription.correctedText ? 'corrected_text' :
-              'raw_text'
-            );
-            console.log('Text length:', textToUse.length);
-            console.log('Tem quebras?', textToUse.includes('\n'));
-            console.log('Contagem de quebras:', (textToUse.match(/\n/g) || []).length);
-            console.log('Preview:', textToUse.substring(0, 300));
-            console.groupEnd();
-
-            return (
-              <TranscriptionEditor
-                key={editorKey}
-                transcriptionId={transcriptionId}
-                initialText={textToUse}
-              />
-            );
-          })()
-        ) : (
-          <div className="flex-1 flex items-center justify-center bg-white">
-            <div className="text-center max-w-md">
-              {transcription.status === 'uploading' && (
-                <>
-                  <Spinner size="lg" />
-                  <p className="mt-4 text-gray-600">Fazendo upload do áudio...</p>
-                </>
-              )}
-              {transcription.status === 'transcribing' && (
-                <>
-                  <Spinner size="lg" />
-                  <p className="mt-4 text-gray-600">Transcrevendo áudio com Whisper...</p>
-                  <p className="mt-2 text-sm text-gray-500">Isso pode levar alguns minutos</p>
-                </>
-              )}
-              {transcription.status === 'correcting' && (
-                <>
-                  <Spinner size="lg" />
-                  <p className="mt-4 text-gray-600">Corrigindo e formatando texto com Claude...</p>
-                  <p className="mt-2 text-sm text-gray-500">Quase lá!</p>
-                </>
-              )}
-              {transcription.status === 'error' && (
-                <>
-                  <div className="text-red-600 text-6xl mb-4">⚠️</div>
-                  <p className="text-gray-900 font-medium">Erro no processamento</p>
-                  <p className="mt-2 text-sm text-gray-600">{transcription.errorMessage}</p>
-                </>
-              )}
-              {transcription.status === 'archived' && (
-                <>
-                  <div className="text-gray-400 text-6xl mb-4">📦</div>
-                  <p className="text-gray-900 font-medium">Transcrição arquivada</p>
-                  <p className="mt-2 text-sm text-gray-600">Esta transcrição está arquivada e não pode ser editada</p>
-                </>
-              )}
-            </div>
-          </div>
+        {/* Audio Player */}
+        {showAudioPlayer && (
+          <AudioPlayer
+            audioUrl={audioUrl}
+            onClose={() => setShowAudioPlayer(false)}
+          />
         )}
-      </div>
+      </header>
+
+      {/* Content */}
+      <main className='flex-1 overflow-hidden'>
+        <TabbedTextViewer
+          transcriptionId={transcription.id}
+          rawText={transcription.rawText || ''}
+          correctedText={transcription.correctedText || ''}
+          finalText={transcription.finalText || ''}
+        />
+      </main>
     </div>
   );
 }
