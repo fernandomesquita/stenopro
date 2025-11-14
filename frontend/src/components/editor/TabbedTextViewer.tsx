@@ -288,26 +288,45 @@ export function TabbedTextViewer({
       </div>
 
       {/* Content Area */}
-      <div className='flex-1 overflow-hidden'>
+      <div className='flex-1 overflow-auto'>
         {activeTab === 'final' ? (
-          // Aba Final: Um único componente Quill que troca apenas readOnly
-          <RichTextEditor
-            key='final-editor'
-            value={isEditing ? editedText : savedFinalText}
-            onChange={(value) => {
-              console.log('[TabbedViewer] Text changed:', value.length);
-              setEditedText(value);
-            }}
-            readOnly={!isEditing}
-            placeholder={isEditing ? 'Digite o texto final...' : ''}
-          />
+          // ABA FINAL
+          isEditing ? (
+            // EDITANDO: Mostrar Quill
+            <div className='h-full'>
+              <RichTextEditor
+                key='editing'
+                value={editedText}
+                onChange={(value) => {
+                  console.log('[TabbedViewer] Text changed:', value.length);
+                  setEditedText(value);
+                }}
+                readOnly={false}
+                placeholder='Digite o texto final...'
+              />
+            </div>
+          ) : (
+            // VISUALIZANDO: Mostrar HTML puro (sem Quill)
+            <div
+              className='p-6 prose prose-sm max-w-none'
+              dangerouslySetInnerHTML={{ __html: savedFinalText }}
+              style={{
+                whiteSpace: 'pre-wrap',
+                lineHeight: '1.8',
+                fontFamily: 'system-ui, -apple-system, sans-serif'
+              }}
+            />
+          )
         ) : (
-          // Abas Raw/Corrected: Readonly sempre, com key diferente para forçar remontagem
-          <RichTextEditor
-            key={`${activeTab}-viewer`}
-            value={currentTab.content}
-            onChange={() => {}}
-            readOnly={true}
+          // OUTRAS ABAS: Sempre HTML puro (sem Quill)
+          <div
+            className='p-6 prose prose-sm max-w-none'
+            dangerouslySetInnerHTML={{ __html: currentTab.content }}
+            style={{
+              whiteSpace: 'pre-wrap',
+              lineHeight: '1.8',
+              fontFamily: 'system-ui, -apple-system, sans-serif'
+            }}
           />
         )}
       </div>
