@@ -71,7 +71,7 @@ export function EditorPage() {
   console.log('[EditorPage] 🎵 Audio URL final:', audioUrl);
 
   return (
-    <div className='flex flex-col h-screen bg-gray-50'>
+    <div className='flex flex-col bg-gray-50' style={{ height: 'calc(100vh - 80px)' }}>
       {/* Header */}
       <header className='bg-white border-b shadow-sm'>
         <div className='px-6 py-4'>

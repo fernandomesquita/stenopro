@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FileText, Sparkles, Edit3, Copy, Download, Save, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { trpc } from '../../lib/trpc';
+import { RichTextEditor } from './RichTextEditor';
 
 type TabType = 'raw' | 'corrected' | 'final';
 
@@ -212,30 +213,21 @@ export function TabbedTextViewer({
       </div>
 
       {/* Content Area */}
-      <div className='flex-1 overflow-auto'>
+      <div className='flex-1 overflow-hidden'>
         {isEditing ? (
-          // Editor Mode
-          <textarea
+          // Editor Mode com Quill
+          <RichTextEditor
             value={editedText}
-            onChange={(e) => setEditedText(e.target.value)}
-            className='w-full h-full p-6 font-sans text-base leading-relaxed resize-none focus:outline-none'
-            style={{
-              whiteSpace: 'pre-wrap',
-              fontFamily: 'system-ui, -apple-system, sans-serif',
-              lineHeight: '1.8'
-            }}
+            onChange={setEditedText}
             placeholder='Digite o texto final...'
-            spellCheck={false}
           />
         ) : (
-          // View Mode
-          <div className='p-6 font-sans text-base leading-relaxed whitespace-pre-wrap'>
-            {currentText || (
-              <div className='text-center text-gray-400 py-20'>
-                Nenhum conteúdo disponível nesta versão
-              </div>
-            )}
-          </div>
+          // View Mode com Quill (readonly)
+          <RichTextEditor
+            value={currentText || 'Nenhum conteúdo disponível nesta versão'}
+            onChange={() => {}}
+            readOnly={true}
+          />
         )}
       </div>
 
