@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { FileText, Sparkles, Edit3, Copy, Download, Save, X, GitCompare } from 'lucide-react';
+import { FileText, Sparkles, Edit3, Copy, Download, Save, X, GitCompare, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { trpc } from '../../lib/trpc';
 import { RichTextEditor } from './RichTextEditor';
 import { TextComparator } from './TextComparator';
+import { DocxExportService } from '../../services/docxExport.service';
 import { useQueryClient } from '@tanstack/react-query';
 
 type TabType = 'raw' | 'corrected' | 'final' | 'compare';
@@ -14,6 +15,7 @@ interface TabbedTextViewerProps {
   correctedText: string;
   finalText: string;
   title: string;
+  transcription?: any; // Dados completos para export
 }
 
 export function TabbedTextViewer({
@@ -21,7 +23,8 @@ export function TabbedTextViewer({
   rawText,
   correctedText,
   finalText,
-  title
+  title,
+  transcription
 }: TabbedTextViewerProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>('corrected');
@@ -206,6 +209,27 @@ export function TabbedTextViewer({
     toast.success('Arquivo exportado!');
   };
 
+  const handleExportDocx = async () => {
+    console.log('[TabbedViewer] Exportando DOCX...');
+
+    try {
+      await DocxExportService.exportToDocx({
+        id: transcriptionId,
+        title: title,
+        room: transcription?.room,
+        created_at: transcription?.created_at || new Date().toISOString(),
+        duration: transcription?.duration,
+        finalText: savedFinalText,
+        stats: transcription?.stats
+      });
+
+      toast.success('DOCX exportado com sucesso!');
+    } catch (error: any) {
+      console.error('[TabbedViewer] Erro ao exportar:', error);
+      toast.error('Erro ao exportar DOCX: ' + error.message);
+    }
+  };
+
   return (
     <div className='flex flex-col h-full bg-white'>
       {/* Tabs Header */}
@@ -280,13 +304,32 @@ export function TabbedTextViewer({
                   <Copy className='w-4 h-4' />
                   Copiar
                 </button>
-                <button
-                  onClick={handleExport}
-                  className='flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200'
-                >
-                  <Download className='w-4 h-4' />
-                  Exportar
-                </button>
+
+                {/* Dropdown de Export */}
+                <div className='relative group'>
+                  <button className='flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200'>
+                    <Download className='w-4 h-4' />
+                    Exportar
+                    <ChevronDown className='w-3 h-3' />
+                  </button>
+
+                  <div className='absolute right-0 mt-1 w-48 bg-white border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10'>
+                    <button
+                      onClick={handleExport}
+                      className='w-full flex items-center gap-2 px-4 py-2 text-left text-sm hover:bg-gray-50 rounded-t-lg'
+                    >
+                      <FileText className='w-4 h-4' />
+                      Exportar TXT
+                    </button>
+                    <button
+                      onClick={handleExportDocx}
+                      className='w-full flex items-center gap-2 px-4 py-2 text-left text-sm hover:bg-gray-50 rounded-b-lg border-t'
+                    >
+                      <FileText className='w-4 h-4 text-blue-600' />
+                      Exportar DOCX
+                    </button>
+                  </div>
+                </div>
               </>
             )}
             </div>
