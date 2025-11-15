@@ -4,27 +4,12 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { testConnection } from './db/client.js';
 import path from 'path';
-
-// Servir frontend em produção
-if (process.env.NODE_ENV === 'production') {
-  const frontendPath = path.join(__dirname, '../../frontend/dist');
-  app.use(express.static(frontendPath));
-  
-  // Todas as rotas não-API vão pro frontend
-  app.get('*', (req, res, next) => {
-    if (!req.path.startsWith('/trpc') && !req.path.startsWith('/api')) {
-      res.sendFile(path.join(frontendPath, 'index.html'));
-    } else {
-      next();
-    }
-  });
-}
-
 import { fileURLToPath } from 'url';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
 import { appRouter } from './routes/index.js';
 import { createContext } from './lib/trpc.js';
 
+// Initialize __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -44,7 +29,12 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Servir arquivos de áudio (uploads)
 const uploadsDir = process.env.STORAGE_DIR || path.join(__dirname, '../uploads');
-app.use('/uploads', express.static(uploadsDir));
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Range');
+  next();
+}, express.static(uploadsDir));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -63,6 +53,21 @@ app.use(
     createContext,
   })
 );
+
+// Servir frontend em produção
+if (process.env.NODE_ENV === 'production') {
+  const frontendPath = path.join(__dirname, '../../frontend/dist');
+  app.use(express.static(frontendPath));
+
+  // Todas as rotas não-API vão pro frontend
+  app.get('*', (req, res, next) => {
+    if (!req.path.startsWith('/trpc') && !req.path.startsWith('/api')) {
+      res.sendFile(path.join(frontendPath, 'index.html'));
+    } else {
+      next();
+    }
+  });
+}
 
 // Iniciar servidor
 async function startServer() {
