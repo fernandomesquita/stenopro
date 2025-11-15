@@ -62,35 +62,46 @@ export function UploadPage() {
     setProgress(0);
 
     try {
-      // Simular progresso
-      const interval = setInterval(() => {
-        setProgress(p => Math.min(p + 10, 90));
-      }, 500);
+      // Converter arquivo para base64
+      console.log('[Upload] Convertendo arquivo para base64...');
+      setProgress(10);
 
-      // Fazer upload
-      const formData = new FormData();
-      formData.append('audio', file);
+      const reader = new FileReader();
 
-      const response = await fetch(window.location.origin + '/api/upload', {
-        method: 'POST',
-        body: formData
-      });
+      reader.onload = async () => {
+        try {
+          const base64 = (reader.result as string).split(',')[1]; // Remove "data:audio/...;base64,"
 
-      clearInterval(interval);
+          console.log('[Upload] Base64 criado, size:', base64.length);
+          setProgress(30);
 
-      if (!response.ok) {
-        throw new Error('Erro no upload');
-      }
+          // Criar transcrição via tRPC com arquivo base64
+          uploadMutation.mutate({
+            title: file.name.replace(/\.[^/.]+$/, ''),
+            audioFile: {
+              buffer: base64,
+              filename: file.name,
+              mimetype: file.type,
+            }
+          });
 
-      const data = await response.json();
+          setProgress(100);
+        } catch (error: any) {
+          console.error('[Upload] Erro ao processar base64:', error);
+          toast.error('Erro ao processar arquivo: ' + error.message);
+          setUploading(false);
+          setProgress(0);
+        }
+      };
 
-      setProgress(100);
+      reader.onerror = () => {
+        console.error('[Upload] Erro ao ler arquivo');
+        toast.error('Erro ao ler arquivo');
+        setUploading(false);
+        setProgress(0);
+      };
 
-      // Criar transcrição
-      uploadMutation.mutate({
-        title: file.name.replace(/\.[^/.]+$/, ''),
-        audioPath: data.path
-      });
+      reader.readAsDataURL(file);
 
     } catch (error: any) {
       console.error('[Upload] Erro:', error);

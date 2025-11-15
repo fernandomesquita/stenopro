@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { trpc } from '../lib/trpc';
 import toast from 'react-hot-toast';
@@ -14,7 +14,31 @@ import {
 
 export function HomePage() {
   // @ts-ignore - Tipo temporário do tRPC
-  const { data: transcriptions, isLoading, refetch } = trpc.transcriptions.list.useQuery();
+  const { data: transcriptions, isLoading, refetch, error, status, fetchStatus } = trpc.transcriptions.list.useQuery();
+
+  // DEBUG: Log query state changes
+  console.log('[HomePage] 🔍 Query State:', {
+    status,
+    fetchStatus,
+    isLoading,
+    hasData: !!transcriptions,
+    hasError: !!error,
+    dataType: typeof transcriptions,
+    isArray: Array.isArray(transcriptions),
+  });
+
+  if (error) {
+    console.error('[HomePage] ❌ Query Error:', error);
+  }
+
+  if (transcriptions) {
+    console.log('[HomePage] ✅ Query Data:', {
+      type: typeof transcriptions,
+      isArray: Array.isArray(transcriptions),
+      keys: Object.keys(transcriptions),
+      value: transcriptions,
+    });
+  }
   // @ts-ignore - Tipo temporário do tRPC
   const deleteMutation = trpc.transcriptions.delete.useMutation({
     onSuccess: () => {
@@ -28,7 +52,51 @@ export function HomePage() {
 
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredTranscriptions = transcriptions?.filter((t: any) =>
+  // DEBUG: Track query state changes over time
+  useEffect(() => {
+    console.group('[HomePage] 🔄 useEffect - Query State Changed');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Status:', status);
+    console.log('Fetch Status:', fetchStatus);
+    console.log('Is Loading:', isLoading);
+    console.log('Has Error:', !!error);
+    console.log('Has Data:', !!transcriptions);
+
+    if (transcriptions) {
+      console.log('Data structure:', {
+        type: typeof transcriptions,
+        isArray: Array.isArray(transcriptions),
+        hasItems: 'items' in transcriptions,
+        hasPagination: 'pagination' in transcriptions,
+        keys: Object.keys(transcriptions),
+      });
+
+      // Check if it's paginated response
+      if ('items' in transcriptions) {
+        console.log('Paginated response detected');
+        console.log('Items count:', (transcriptions as any).items?.length);
+        console.log('Items:', (transcriptions as any).items);
+      } else {
+        console.log('Direct array response');
+        console.log('Length:', Array.isArray(transcriptions) ? transcriptions.length : 'N/A');
+      }
+    }
+
+    if (error) {
+      console.error('Error details:', {
+        message: (error as any)?.message,
+        data: (error as any)?.data,
+        shape: (error as any)?.shape,
+      });
+    }
+
+    console.groupEnd();
+  }, [status, fetchStatus, transcriptions, error, isLoading]);
+
+  // Extract items from paginated response
+  const items = (transcriptions as any)?.items || [];
+
+  const filteredTranscriptions = items.filter((t: any) =>
     t.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -42,14 +110,15 @@ export function HomePage() {
   console.log('[HomePage] Render', {
     isLoading,
     hasTranscriptions: !!transcriptions,
-    count: transcriptions?.length,
+    hasItems: !!items,
+    itemsCount: items?.length,
     searchQuery,
     filteredCount: filteredTranscriptions?.length
   });
 
   // Log detalhado das transcrições
-  if (transcriptions) {
-    console.log('[HomePage] Transcrições:', transcriptions.map((t: any) => ({
+  if (items && items.length > 0) {
+    console.log('[HomePage] Items:', items.map((t: any) => ({
       id: t.id,
       title: t.title,
       status: t.status,
@@ -145,7 +214,7 @@ export function HomePage() {
             </button>
           </div>
 
-          {(!transcriptions || transcriptions.length === 0) ? (
+          {(!items || items.length === 0) ? (
             <EmptyState
               icon={Mic}
               title='Nenhuma transcrição ainda'
