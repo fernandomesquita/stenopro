@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import { EditorPage } from './pages/EditorPage';
+import { UploadPage } from './pages/UploadPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { Footer } from './components/layout/Footer';
 
@@ -11,6 +12,7 @@ function App() {
         <div className="flex-1">
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/upload" element={<UploadPage />} />
             <Route path="/editor/:id" element={<EditorPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>

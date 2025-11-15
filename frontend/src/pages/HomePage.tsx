@@ -38,6 +38,25 @@ export function HomePage() {
     }
   };
 
+  // Debug logs
+  console.log('[HomePage] Render', {
+    isLoading,
+    hasTranscriptions: !!transcriptions,
+    count: transcriptions?.length,
+    searchQuery,
+    filteredCount: filteredTranscriptions?.length
+  });
+
+  // Log detalhado das transcrições
+  if (transcriptions) {
+    console.log('[HomePage] Transcrições:', transcriptions.map((t: any) => ({
+      id: t.id,
+      title: t.title,
+      status: t.status,
+      hasStats: !!t.stats
+    })));
+  }
+
   if (isLoading) {
     return (
       <div className='min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50'>
@@ -126,17 +145,21 @@ export function HomePage() {
             </button>
           </div>
 
-          {!filteredTranscriptions || filteredTranscriptions.length === 0 ? (
+          {(!transcriptions || transcriptions.length === 0) ? (
             <EmptyState
               icon={Mic}
-              title={searchQuery ? 'Nenhuma transcrição encontrada' : 'Nenhuma transcrição ainda'}
-              description={searchQuery
-                ? 'Tente buscar com outros termos'
-                : 'Faça upload de um áudio para começar a transcrever!'}
-              action={!searchQuery ? {
+              title='Nenhuma transcrição ainda'
+              description='Faça upload de um áudio para começar a transcrever!'
+              action={{
                 label: '📤 Fazer Primeiro Upload',
                 onClick: () => window.location.href = '/upload'
-              } : undefined}
+              }}
+            />
+          ) : !filteredTranscriptions || filteredTranscriptions.length === 0 ? (
+            <EmptyState
+              icon={Search}
+              title='Nenhuma transcrição encontrada'
+              description='Tente buscar com outros termos'
             />
           ) : (
             filteredTranscriptions.map((transcription: any, index: number) => (

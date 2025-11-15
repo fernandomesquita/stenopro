@@ -1,29 +1,37 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { trpc } from '@/lib/trpc';
 import toast from 'react-hot-toast';
-import { Save, Trash2, Plus, Check, Settings as SettingsIcon, Upload } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Save, Trash2, Plus, Check, Settings as SettingsIcon, Upload, ArrowLeft } from 'lucide-react';
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'prompts' | 'glossary'>('prompts');
-  const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <SettingsIcon className="w-8 h-8 text-gray-700" />
-            <h1 className="text-3xl font-bold text-gray-900">Configurações</h1>
+    <div className='min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50'>
+      {/* Header */}
+      <header className='bg-gradient-primary text-white shadow-elevated'>
+        <div className='max-w-7xl mx-auto px-6 py-8'>
+          <div className='flex items-center gap-4'>
+            <Link
+              to='/'
+              className='flex items-center gap-2 text-white hover:text-blue-100 transition-colors'
+            >
+              <ArrowLeft className='w-5 h-5' />
+              Voltar
+            </Link>
+            <div className='border-l border-white/20 pl-4'>
+              <h1 className='text-4xl font-bold flex items-center gap-3'>
+                <SettingsIcon className='w-10 h-10' />
+                Configurações
+              </h1>
+            </div>
           </div>
-          <button
-            onClick={() => navigate('/')}
-            className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            ← Voltar
-          </button>
         </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto p-6">
+        <div className="bg-white rounded-2xl shadow-elevated p-6 mb-6">
 
         {/* Tabs */}
         <div className="flex gap-4 mb-6 border-b border-gray-200">
@@ -52,7 +60,8 @@ export function SettingsPage() {
         {/* Content */}
         {activeTab === 'prompts' && <PromptsTab />}
         {activeTab === 'glossary' && <GlossaryTab />}
-      </div>
+        </div>
+      </main>
     </div>
   );
 }
