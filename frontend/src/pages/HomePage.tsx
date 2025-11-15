@@ -14,7 +14,14 @@ import {
 
 export function HomePage() {
   // @ts-ignore - Tipo temporário do tRPC
-  const { data: transcriptions, isLoading, refetch, error, status, fetchStatus } = trpc.transcriptions.list.useQuery();
+  const { data: transcriptions, isLoading, refetch, error, status, fetchStatus } = trpc.transcriptions.list.useQuery(
+    {},  // ← IMPORTANTE: objeto vazio para usar defaults do Zod
+    {
+      refetchOnMount: true,
+      refetchOnWindowFocus: false,
+      retry: 2,
+    }
+  );
 
   // DEBUG: Log query state changes
   console.log('[HomePage] 🔍 Query State:', {
@@ -29,6 +36,11 @@ export function HomePage() {
 
   if (error) {
     console.error('[HomePage] ❌ Query Error:', error);
+    console.error('[HomePage] ❌ Error details:', {
+      message: (error as any)?.message,
+      data: (error as any)?.data,
+      shape: (error as any)?.shape,
+    });
   }
 
   if (transcriptions) {
