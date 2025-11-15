@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TranscriptionCard } from './TranscriptionCard';
 import { Input } from '../common/Input';
